@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+
+<launch>
+
+  <!-- Start the sonar reading -->
+  <node name="sonar_oculus_node"
+        pkg="sonar_oculus"
+        type="sonar_oculus_node"
+        output="screen"
+        respawn="true"
+        respawn_delay="5">
+    <!-- Set ROS parameters -->
+    <param name="frame" type="string" value="/sonar"/>
+  </node>
+
+  <!-- Establish a static transform to link rviz map to sonar -->
+  <node name="sonar_base_link"
+  pkg="tf2_ros"
+  type="static_transform_publisher"
+  args="0 0 0 3.14159265359 0 0 /base_link /sonar">
+  </node>
+
+  <!-- Open RVIZ with default parameters -->
+  <node name="rviz"
+  pkg="rviz"
+  type="rviz"
+  args="-d $(find sonar_oculus)/launch/default.rviz">
+  </node>
+
+  <!-- Open a reconfigure window for adjusting sonar properties -->
+  <node name="rqt_reconfigure"
+  pkg="rqt_reconfigure"
+  type="rqt_reconfigure">
+  </node>
+
+</launch>

@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+
+<launch>
+
+  <!-- Start the sonar reading -->
+  <node name="sonar_oculus_node"
+        pkg="sonar_oculus"
+        type="sonar_oculus_node"
+        output="screen"
+        respawn="true"
+        respawn_delay="5">
+    <!-- Set ROS parameters -->
+    <param name="frame" type="string" value="sonar"/>
+  </node>
+
+
+  <!-- Open a reconfigure window for adjusting sonar properties -->
+  <node name="rqt_reconfigure"
+  pkg="rqt_reconfigure"
+  type="rqt_reconfigure">
+  </node>
+
+</launch>
