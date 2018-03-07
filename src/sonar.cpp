@@ -198,8 +198,8 @@ int main(int argc, char **argv) {
     // Get bins and beams #.
     nbins = m750d.m_readData.m_osBuffer[0].m_rfm.nRanges;
     nbeams = m750d.m_readData.m_osBuffer[0].m_rfm.nBeams;
-    sonar_ping.height = nbeams;
-    sonar_ping.width = nbins;
+    sonar_ping.height = nbins;
+    sonar_ping.width = nbeams;
     sonar_ping.step = nbins;
     // sonar_ping.encoding = sensor_msgs::image_encodings::TYPE_8UC1;
     sonar_ping.encoding = "8UC1";
@@ -214,6 +214,7 @@ int main(int argc, char **argv) {
       sonar_cloud.channels.resize(1);
       sonar_cloud.channels[0].name = "Intensity";
       sonar_cloud.channels[0].values.resize(nbeams * nbins);
+      sonar_ping.data.resize(nbeams*nbins);
       std::copy( m750d.m_readData.m_osBuffer[0].m_pImage,m750d.m_readData.m_osBuffer[0].m_pImage+ m750d.m_readData.m_osBuffer[0].m_rawSize , sonar_ping.data.begin());
 
       // Acquire sonar range spatial data
