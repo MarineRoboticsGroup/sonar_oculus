@@ -180,10 +180,11 @@ int main(int argc, char **argv) {
   sonar_laserEQ.header.frame_id = frame_str.c_str();
 
   // Run continously
-  ros::Rate r(50); // pvt: sonar should be under 40Hz
+  ros::Rate r(50); // pvt: sonar should be under 40Hz (reduced 100 to 50)
   while (ros::ok()) {
     // Fire sonar
     m750d.Fire(mode, range, gain, soundspeed, (double)salinity);
+    // pvt: maybe sleep between firing and reading?
 
     // Run the readthread sonar
     m750d.m_readData.run();
@@ -248,12 +249,16 @@ int main(int argc, char **argv) {
       ping_msg.frequency = m750d.m_readData.m_osBuffer[0].m_rfm.frequency;
       ping_msg.temperature = m750d.m_readData.m_osBuffer[0].m_rfm.temperature;
       ping_msg.pressure = m750d.m_readData.m_osBuffer[0].m_rfm.pressure;
-      ping_msg.speed_of_sound = m750d.m_readData.m_osBuffer[0].m_rfm.speedOfSoundUsed;
+      ping_msg.speed_of_sound =
+          m750d.m_readData.m_osBuffer[0].m_rfm.speedOfSoundUsed;
 
       ping_msg.start_time = m750d.m_readData.m_osBuffer[0].m_rfm.pingStartTime;
-      ping_msg.range_resolution = m750d.m_readData.m_osBuffer[0].m_rfm.rangeResolution;
+      ping_msg.range_resolution =
+          m750d.m_readData.m_osBuffer[0].m_rfm.rangeResolution;
       ping_msg.num_ranges = nbins;
       ping_msg.num_beams = nbeams;
+
+      ping_pub.publish(ping_msg);
 
       // Acquire sonar range spatial data
       r_step = m750d.m_readData.m_osBuffer[0].m_rfm.rangeResolution;
