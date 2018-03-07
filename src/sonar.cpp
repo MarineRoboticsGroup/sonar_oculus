@@ -1,3 +1,6 @@
+// VSieben@slb.com (original author, 2017)
+// pvt@mit.edu     (extensions, 2018)
+
 #include <arpa/inet.h>
 #include <iostream>
 #include <math.h>
@@ -15,14 +18,13 @@
 #include "Oculus.h"
 #include "OculusClient.h"
 
-// Hm
-
 // ROS includes
 #include <ros/ros.h>
 // PCL specific includes
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl_conversions/pcl_conversions.h>
+#include <sensor_msgs/Image.h>
 #include <sensor_msgs/LaserScan.h>
 #include <sensor_msgs/PointCloud.h>
 
@@ -37,9 +39,6 @@
 //#define SONAR_ADDR "169.254.37.89"
 #define SONAR_ADDR "10.0.0.128"
 #define PI 3.14159265359
-
-ros::Publisher pub;
-ros::Publisher pub2;
 
 // Global sonar configuration
 int mode = 1;             // 0 => dev/not used, 1 => ~750khz, 2 => ~1.2Mhz.
@@ -75,9 +74,13 @@ int main(int argc, char **argv) {
   ros::init(argc, argv, "sonar_oculus");
   ros::NodeHandle nh("~");
 
+  unsigned int latest_id = 0; // keep track of latest ping to avoid republishing
+
   // Create a ROS publisher for the output point cloud
+  ros::Publisher pub, pub2, image_pub;
   pub = nh.advertise<sensor_msgs::PointCloud>("sonar_oculus_output", 1);
   pub2 = nh.advertise<sensor_msgs::LaserScan>("sonar_oculus_laserEQ", 1);
+  image_pub = nh.advertise<sensor_msgs::Image>("sonar_oculus_ping", 1);
 
   // Setup dynamic server
   dynamic_reconfigure::Server<sonar_oculus::oculusParamsConfig> serverParam;
@@ -113,6 +116,7 @@ int main(int argc, char **argv) {
   // PointCloud and laserscan messages.
   sensor_msgs::PointCloud sonar_cloud;
   sensor_msgs::LaserScan sonar_laserEQ;
+  sensor_msgs::Image sonar_ping;
   std::string frame_str;
 
   // Clear and intialize values of server and client network info
@@ -173,6 +177,7 @@ int main(int argc, char **argv) {
   }
   sonar_cloud.header.frame_id = frame_str.c_str();
   sonar_laserEQ.header.frame_id = frame_str.c_str();
+  sonar_ping.header.frame_id = frame_str.c_str();
 
   // Run continously
   ros::Rate r(100);
@@ -188,18 +193,28 @@ int main(int argc, char **argv) {
     // Update PointCloud header.
     sonar_cloud.header.stamp = ros::Time::now();
     sonar_laserEQ.header.stamp = ros::Time::now();
+    sonar_ping.header.stamp = ros::Time::now();
 
     // Get bins and beams #.
     nbins = m750d.m_readData.m_osBuffer[0].m_rfm.nRanges;
     nbeams = m750d.m_readData.m_osBuffer[0].m_rfm.nBeams;
+    sonar_ping.height = nbeams;
+    sonar_ping.width = nbins;
+    sonar_ping.step = nbins;
+    // sonar_ping.encoding = sensor_msgs::image_encodings::TYPE_8UC1;
+    sonar_ping.encoding = "8UC1";
+    //sonar_ping.data.resize(nbins * nbeams);
+    unsigned int id = m750d.m_readData.m_osBuffer[0].m_rfm.pingId;
 
     // Create pointcloud message from sonar data
-    if (nbeams > 0 && nbins > 0) {
+    if (nbeams > 0 && nbins > 0 && id > latest_id) {
+      latest_id = id;
       // Resize PoinCloud and channel for intensities
       sonar_cloud.points.resize(nbeams * nbins);
       sonar_cloud.channels.resize(1);
       sonar_cloud.channels[0].name = "Intensity";
       sonar_cloud.channels[0].values.resize(nbeams * nbins);
+      std::copy( m750d.m_readData.m_osBuffer[0].m_pImage,m750d.m_readData.m_osBuffer[0].m_pImage+ m750d.m_readData.m_osBuffer[0].m_rawSize , sonar_ping.data.begin());
 
       // Acquire sonar range spatial data
       r_step = m750d.m_readData.m_osBuffer[0].m_rfm.rangeResolution;
@@ -274,14 +289,15 @@ int main(int argc, char **argv) {
 
       // ROS_INFO("data:%lu", sonar_laserEQ.ranges.size());
       //%5.5f, %5.5f, %5.5f",sonar_laserEQ.angle_min, sonar_laserEQ.angle_max,
-      //sonar_laserEQ.angle_increment);
+      // sonar_laserEQ.angle_increment);
       //%hi, %hi ... m750d.m_readData.m_osBuffer[0].m_pBrgs[0],
-      //m750d.m_readData.m_osBuffer[0].m_pBrgs[nbeams-1]);
+      // m750d.m_readData.m_osBuffer[0].m_pBrgs[nbeams-1]);
       //%5.5f ... m750d.m_readData.m_osBuffer[0].m_rfm.frequency);
 
       // Publish sonar data and laserEQ
       pub.publish(sonar_cloud);
       pub2.publish(sonar_laserEQ);
+      image_pub.publish(sonar_ping);
       // ROS_INFO("Pinging...");
     }
 
