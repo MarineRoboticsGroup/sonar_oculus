@@ -161,7 +161,7 @@ public:
     double frequency;				/* The acoustic frequency (Hz) */
     double temperature;				/* The external temperature (deg C) */
     double pressure;				/* The external pressure (bar) */
-    double speeedOfSoundUsed;		/* The actual used speed of sound (m/s). May be different to the speed of sound set in the fire message */
+    double speedOfSoundUsed;		/* The actual used speed of sound (m/s). May be different to the speed of sound set in the fire message */
     uint32_t pingStartTime;
     DataSizeType dataSize; 			/* The size of the individual data entries */
     double rangeResolution;			/* The range in metres corresponding to a single range line */
