@@ -1,3 +1,7 @@
+// VSieben@slb.com (original author, 2017)
+// pvt@mit.edu     (extensions, 2018)
+
+#include <algorithm>
 #include <arpa/inet.h>
 #include <iostream>
 #include <math.h>
@@ -15,16 +19,17 @@
 #include "Oculus.h"
 #include "OculusClient.h"
 
-// Hm
-
 // ROS includes
 #include <ros/ros.h>
 // PCL specific includes
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl_conversions/pcl_conversions.h>
+#include <sensor_msgs/Image.h>
 #include <sensor_msgs/LaserScan.h>
 #include <sensor_msgs/PointCloud.h>
+#include <sonar_oculus/OculusFire.h>
+#include <sonar_oculus/OculusPing.h>
 
 // Dynamic server
 #include <dynamic_reconfigure/server.h>
@@ -35,11 +40,9 @@
 #define PORT_UDP 52102
 #define PORT_TCP 52100
 //#define SONAR_ADDR "169.254.37.89"
-#define SONAR_ADDR "10.0.0.128"
+#define SONAR_ADDR "169.254.30.199"
+//#define SONAR_ADDR "10.0.0.128"
 #define PI 3.14159265359
-
-ros::Publisher pub;
-ros::Publisher pub2;
 
 // Global sonar configuration
 int mode = 1;             // 0 => dev/not used, 1 => ~750khz, 2 => ~1.2Mhz.
@@ -70,14 +73,18 @@ void callback(sonar_oculus::oculusParamsConfig &config, uint32_t level) {
 
 // Main program for listening to sonar
 int main(int argc, char **argv) {
-
   // Initialize ROS
+  ROS_INFO("Initializing...");
   ros::init(argc, argv, "sonar_oculus");
   ros::NodeHandle nh("~");
 
+  unsigned int latest_id = 0; // keep track of latest ping to avoid republishing
+
   // Create a ROS publisher for the output point cloud
+  ros::Publisher pub, pub2, ping_pub;
   pub = nh.advertise<sensor_msgs::PointCloud>("sonar_oculus_output", 1);
   pub2 = nh.advertise<sensor_msgs::LaserScan>("sonar_oculus_laserEQ", 1);
+  ping_pub = nh.advertise<sonar_oculus::OculusPing>("sonar_oculus_ping", 1);
 
   // Setup dynamic server
   dynamic_reconfigure::Server<sonar_oculus::oculusParamsConfig> serverParam;
@@ -124,13 +131,14 @@ int main(int argc, char **argv) {
   serverUDP.sin_port = htons(PORT_UDP);
 
   lengthClientUDP = sizeof(clientUDP);
-
   lengthServerTCP = sizeof(serverTCP);
+  
   bzero((char *)&serverTCP, lengthServerTCP);
   serverTCP.sin_family = AF_INET;
   serverTCP.sin_addr.s_addr = inet_addr(SONAR_ADDR);
   serverTCP.sin_port = htons(PORT_TCP);
 
+  ROS_INFO("Connecting...");
   // Create the UDP listening socket or exit
   sockUDP = socket(AF_INET, SOCK_DGRAM, 0);
   if (sockUDP < 0)
@@ -145,7 +153,6 @@ int main(int argc, char **argv) {
   sockTCP = socket(AF_INET, SOCK_STREAM, 0);
   if (sockTCP < 0)
     error("Error opening TCP main socket");
-
   // Connect to the sonar Server via TCP socket or exit with error
   if (connect(sockTCP, (struct sockaddr *)&serverTCP, lengthServerTCP) < 0)
     error("Error connecting TCP socket");
@@ -162,6 +169,9 @@ int main(int argc, char **argv) {
   m750d.m_readData.m_pSocket = &sockTCP;
   // Connect and instance a thread
   m750d.Connect();
+
+  ROS_INFO("Connected!");
+
   // Send Ping and initiate data collection
   m750d.Fire(mode, range, gain, soundspeed, salinity);
   // Get frame ID
@@ -175,36 +185,87 @@ int main(int argc, char **argv) {
   sonar_laserEQ.header.frame_id = frame_str.c_str();
 
   // Run continously
-  ros::Rate r(100);
+  ros::Rate r(50); // pvt: sonar should be under 40Hz (reduced 100 to 50)
   while (ros::ok()) {
-    // Fire sonar
-    m750d.Fire(mode, range, gain, soundspeed, (double)salinity);
 
     // Run the readthread sonar
     m750d.m_readData.run();
 
-    // Do data processing here...
-
-    // Update PointCloud header.
-    sonar_cloud.header.stamp = ros::Time::now();
-    sonar_laserEQ.header.stamp = ros::Time::now();
-
     // Get bins and beams #.
     nbins = m750d.m_readData.m_osBuffer[0].m_rfm.nRanges;
     nbeams = m750d.m_readData.m_osBuffer[0].m_rfm.nBeams;
+    unsigned int id = m750d.m_readData.m_osBuffer[0].m_rfm.pingId;
 
     // Create pointcloud message from sonar data
-    if (nbeams > 0 && nbins > 0) {
-      // Resize PoinCloud and channel for intensities
+    if (nbeams > 0 && nbins > 0 && id > latest_id) {
+      latest_id = id;
+
+      // Resize PointCloud and channel for intensities
+      sonar_cloud.header.stamp = ros::Time::now();
       sonar_cloud.points.resize(nbeams * nbins);
       sonar_cloud.channels.resize(1);
       sonar_cloud.channels[0].name = "Intensity";
       sonar_cloud.channels[0].values.resize(nbeams * nbins);
 
+      // sonar image
+      if ( m750d.m_readData.m_osBuffer[0].m_rawSize){
+      //if (0){
+        sensor_msgs::Image sonar_image;
+        sonar_image.header.stamp = ros::Time::now();
+        sonar_image.height = nbins;
+        sonar_image.width = nbeams;
+        sonar_image.encoding = "8UC1";
+        // sonar_image.is_bigendian = 0; // default works
+        sonar_image.step = nbins;
+        sonar_image.data.resize(nbeams * nbins);
+        std::copy(m750d.m_readData.m_osBuffer[0].m_pImage,
+                  m750d.m_readData.m_osBuffer[0].m_pImage +
+                  nbins*nbeams,
+                  sonar_image.data.begin());
+
+        // fire msg
+        sonar_oculus::OculusFire fire_msg;
+        fire_msg.header.stamp = ros::Time::now();
+
+        fire_msg.mode =
+          m750d.m_readData.m_osBuffer[0].m_rfm.fireMessage.masterMode;
+        fire_msg.gamma =
+          m750d.m_readData.m_osBuffer[0].m_rfm.fireMessage.gammaCorrection;
+        fire_msg.flags = m750d.m_readData.m_osBuffer[0].m_rfm.fireMessage.flags;
+        fire_msg.range = m750d.m_readData.m_osBuffer[0].m_rfm.fireMessage.range;
+        fire_msg.gain =
+          m750d.m_readData.m_osBuffer[0].m_rfm.fireMessage.gainPercent;
+        fire_msg.speed_of_sound =
+          m750d.m_readData.m_osBuffer[0].m_rfm.fireMessage.speedOfSound;
+        fire_msg.salinity =
+          m750d.m_readData.m_osBuffer[0].m_rfm.fireMessage.salinity;
+
+        // sonar ping
+        sonar_oculus::OculusPing ping_msg;
+        ping_msg.ping = sonar_image;
+        ping_msg.fire_msg = fire_msg;
+        ping_msg.ping_id = id;
+        ping_msg.status = m750d.m_readData.m_osBuffer[0].m_rfm.status;
+        ping_msg.frequency = m750d.m_readData.m_osBuffer[0].m_rfm.frequency;
+        ping_msg.temperature = m750d.m_readData.m_osBuffer[0].m_rfm.temperature;
+        ping_msg.pressure = m750d.m_readData.m_osBuffer[0].m_rfm.pressure;
+        ping_msg.speed_of_sound =
+          m750d.m_readData.m_osBuffer[0].m_rfm.speedOfSoundUsed;
+
+        ping_msg.start_time = m750d.m_readData.m_osBuffer[0].m_rfm.pingStartTime;
+        ping_msg.range_resolution =
+          m750d.m_readData.m_osBuffer[0].m_rfm.rangeResolution;
+        ping_msg.num_ranges = nbins;
+        ping_msg.num_beams = nbeams;
+
+        ping_pub.publish(ping_msg);
+      }
+
       // Acquire sonar range spatial data
       r_step = m750d.m_readData.m_osBuffer[0].m_rfm.rangeResolution;
 
       // Set LaserScan parameters, which may change if user modifies
+      sonar_laserEQ.header.stamp = ros::Time::now();
       sonar_laserEQ.angle_min =
           (float)m750d.m_readData.m_osBuffer[0].m_pBrgs[0] * PI / 18000.0;
       sonar_laserEQ.angle_max =
@@ -274,17 +335,21 @@ int main(int argc, char **argv) {
 
       // ROS_INFO("data:%lu", sonar_laserEQ.ranges.size());
       //%5.5f, %5.5f, %5.5f",sonar_laserEQ.angle_min, sonar_laserEQ.angle_max,
-      //sonar_laserEQ.angle_increment);
+      // sonar_laserEQ.angle_increment);
       //%hi, %hi ... m750d.m_readData.m_osBuffer[0].m_pBrgs[0],
-      //m750d.m_readData.m_osBuffer[0].m_pBrgs[nbeams-1]);
+      // m750d.m_readData.m_osBuffer[0].m_pBrgs[nbeams-1]);
       //%5.5f ... m750d.m_readData.m_osBuffer[0].m_rfm.frequency);
 
       // Publish sonar data and laserEQ
       pub.publish(sonar_cloud);
       pub2.publish(sonar_laserEQ);
+      // ping_pub.publish(sonar_ping);
       // ROS_INFO("Pinging...");
-    }
+    } // if (nbins>0 && nbeams>0 && id>latest_id)
 
+    // Fire sonar (so we sleep while the ping travels)
+    m750d.Fire(mode, range, gain, soundspeed, (double)salinity);
+    r.sleep();
     // Process ROS events
     ros::spinOnce();
   }

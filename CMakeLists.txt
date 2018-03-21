@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(sonar_oculus)
 
-
 add_compile_options(-std=c++11)
 
 
@@ -16,7 +15,6 @@ find_package(catkin REQUIRED COMPONENTS
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
-
 
 
 ################################################
@@ -47,6 +45,8 @@ find_package(catkin REQUIRED COMPONENTS
 add_message_files(
    FILES
    Sonar_Oculus_Config.msg
+   OculusFire.msg
+   OculusPing.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -67,6 +67,7 @@ add_message_files(
 generate_messages(
    DEPENDENCIES
    std_msgs
+   sensor_msgs
 )
 
 ################################################
