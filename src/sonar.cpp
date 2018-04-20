@@ -133,11 +133,6 @@ int main(int argc, char **argv) {
   lengthClientUDP = sizeof(clientUDP);
   lengthServerTCP = sizeof(serverTCP);
   
-  bzero((char *)&serverTCP, lengthServerTCP);
-  serverTCP.sin_family = AF_INET;
-  serverTCP.sin_addr.s_addr = inet_addr(SONAR_ADDR);
-  serverTCP.sin_port = htons(PORT_TCP);
-
   ROS_INFO("Connecting...");
   // Create the UDP listening socket or exit
   sockUDP = socket(AF_INET, SOCK_DGRAM, 0);
@@ -148,6 +143,22 @@ int main(int argc, char **argv) {
   if (bind(sockUDP, (struct sockaddr *)&serverUDP, lengthServerUDP) < 0)
     error("Error binding UDP listening socket");
   listen(sockUDP, 5);
+
+  while (true) {
+    int64_t bytesAvailable;
+    ioctl(sockUDP, FIONREAD, &bytesAvailable);
+
+    OculusStatusMsg osm;
+    if (bytesAvailable > 0) { 
+      unsigned bytesRead = read(sockUDP, (char*)&osm, bytesAvailable);
+      struct in_addr ip_addr;
+      ip_addr.s_addr = osm.ipAddr;
+      printf("The IP address is %s\n", inet_ntoa(ip_addr));
+
+      bzero((char *)&serverTCP, lengthServerTCP);
+      serverTCP.sin_family = AF_INET;
+      serverTCP.sin_addr.s_addr = osm.ipAddr;
+      serverTCP.sin_port = htons(PORT_TCP);
 
   // Create the TCP socket for main communication or exit
   sockTCP = socket(AF_INET, SOCK_STREAM, 0);
@@ -163,6 +174,10 @@ int main(int argc, char **argv) {
                  sizeof(keepalive)) < 0)
     error("Error keeping alive option set for TCP socket");
   listen(sockTCP, 5);
+      break;
+    }
+    ros::Duration(1.0).sleep();
+  }
 
   // Setup Sonar and messages
   // Pass the socket to the control
