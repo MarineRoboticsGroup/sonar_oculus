@@ -242,6 +242,8 @@ int main(int argc, char **argv) {
 
         // sonar ping
         sonar_oculus::OculusPing ping_msg;
+        ping_msg.header.frame_id = frame_str;
+        ping_msg.header.stamp = fire_msg.header.stamp;
         ping_msg.ping = sonar_image;
         ping_msg.fire_msg = fire_msg;
         ping_msg.ping_id = id;
@@ -253,6 +255,9 @@ int main(int argc, char **argv) {
           m750d.m_readData.m_osBuffer[0].m_rfm.speedOfSoundUsed;
 
         ping_msg.start_time = m750d.m_readData.m_osBuffer[0].m_rfm.pingStartTime;
+        ping_msg.bearings.resize(nbeams);
+        for (int i = 0; i < nbeams; ++i)
+            ping_msg.bearings[i] = m750d.m_readData.m_osBuffer[0].m_pBrgs[i];
         ping_msg.range_resolution =
           m750d.m_readData.m_osBuffer[0].m_rfm.rangeResolution;
         ping_msg.num_ranges = nbins;
