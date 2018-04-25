@@ -33,7 +33,7 @@
 
 // Dynamic server
 #include <dynamic_reconfigure/server.h>
-#include <sonar_oculus/oculusParamsConfig.h>
+#include <sonar_oculus/OculusParamsConfig.h>
 
 #define BUFLEN 200
 #define DATALEN 200000
@@ -59,7 +59,7 @@ void error(const char *msg) {
 }
 
 // Callback for dynamic reconfigure server
-void callback(sonar_oculus::oculusParamsConfig &config, uint32_t level) {
+void callback(sonar_oculus::OculusParamsConfig &config, uint32_t level) {
   mode = config.Mode;
   gain = config.Gain;
   soundspeed = config.Speed;
@@ -87,8 +87,8 @@ int main(int argc, char **argv) {
   ping_pub = nh.advertise<sonar_oculus::OculusPing>("ping", 1);
 
   // Setup dynamic server
-  dynamic_reconfigure::Server<sonar_oculus::oculusParamsConfig> serverParam;
-  dynamic_reconfigure::Server<sonar_oculus::oculusParamsConfig>::CallbackType f;
+  dynamic_reconfigure::Server<sonar_oculus::OculusParamsConfig> serverParam;
+  dynamic_reconfigure::Server<sonar_oculus::OculusParamsConfig>::CallbackType f;
 
   f = boost::bind(&callback, _1, _2);
   serverParam.setCallback(f);

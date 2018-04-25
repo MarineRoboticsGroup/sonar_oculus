@@ -2,9 +2,10 @@
 
 <launch>
   <arg name="rqt" default="true"/>
+  <arg name="sonar" default="true"/>
 
   <!-- Start the sonar reading -->
-  <node name="sonar_oculus_node" pkg="sonar_oculus" type="sonar_oculus_node" output="screen" respawn="true" respawn_delay="5">
+  <node if="$(arg sonar)" name="sonar_oculus_node" pkg="sonar_oculus" type="sonar_oculus_node" output="screen" respawn="true" respawn_delay="5">
     <param name="frame" type="string" value="/sonar"/>
   </node>
 
