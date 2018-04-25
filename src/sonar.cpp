@@ -33,7 +33,7 @@
 
 // Dynamic server
 #include <dynamic_reconfigure/server.h>
-#include <sonar_oculus/oculusParamsConfig.h>
+#include <sonar_oculus/OculusParamsConfig.h>
 
 #define BUFLEN 200
 #define DATALEN 200000
@@ -59,7 +59,7 @@ void error(const char *msg) {
 }
 
 // Callback for dynamic reconfigure server
-void callback(sonar_oculus::oculusParamsConfig &config, uint32_t level) {
+void callback(sonar_oculus::OculusParamsConfig &config, uint32_t level) {
   mode = config.Mode;
   gain = config.Gain;
   soundspeed = config.Speed;
@@ -82,13 +82,13 @@ int main(int argc, char **argv) {
 
   // Create a ROS publisher for the output point cloud
   ros::Publisher pub, pub2, ping_pub;
-  pub = nh.advertise<sensor_msgs::PointCloud>("sonar_oculus_output", 1);
-  pub2 = nh.advertise<sensor_msgs::LaserScan>("sonar_oculus_laserEQ", 1);
-  ping_pub = nh.advertise<sonar_oculus::OculusPing>("sonar_oculus_ping", 1);
+  // pub = nh.advertise<sensor_msgs::PointCloud>("sonar_oculus_output", 1);
+  // pub2 = nh.advertise<sensor_msgs::LaserScan>("sonar_oculus_laserEQ", 1);
+  ping_pub = nh.advertise<sonar_oculus::OculusPing>("ping", 1);
 
   // Setup dynamic server
-  dynamic_reconfigure::Server<sonar_oculus::oculusParamsConfig> serverParam;
-  dynamic_reconfigure::Server<sonar_oculus::oculusParamsConfig>::CallbackType f;
+  dynamic_reconfigure::Server<sonar_oculus::OculusParamsConfig> serverParam;
+  dynamic_reconfigure::Server<sonar_oculus::OculusParamsConfig>::CallbackType f;
 
   f = boost::bind(&callback, _1, _2);
   serverParam.setCallback(f);
@@ -118,8 +118,8 @@ int main(int argc, char **argv) {
   float lbeam_current = 0.0;
 
   // PointCloud and laserscan messages.
-  sensor_msgs::PointCloud sonar_cloud;
-  sensor_msgs::LaserScan sonar_laserEQ;
+  // sensor_msgs::PointCloud sonar_cloud;
+  // sensor_msgs::LaserScan sonar_laserEQ;
   std::string frame_str;
 
   // Clear and intialize values of server and client network info
@@ -133,11 +133,6 @@ int main(int argc, char **argv) {
   lengthClientUDP = sizeof(clientUDP);
   lengthServerTCP = sizeof(serverTCP);
   
-  bzero((char *)&serverTCP, lengthServerTCP);
-  serverTCP.sin_family = AF_INET;
-  serverTCP.sin_addr.s_addr = inet_addr(SONAR_ADDR);
-  serverTCP.sin_port = htons(PORT_TCP);
-
   ROS_INFO("Connecting...");
   // Create the UDP listening socket or exit
   sockUDP = socket(AF_INET, SOCK_DGRAM, 0);
@@ -148,6 +143,22 @@ int main(int argc, char **argv) {
   if (bind(sockUDP, (struct sockaddr *)&serverUDP, lengthServerUDP) < 0)
     error("Error binding UDP listening socket");
   listen(sockUDP, 5);
+
+  while (true) {
+    int64_t bytesAvailable;
+    ioctl(sockUDP, FIONREAD, &bytesAvailable);
+
+    OculusStatusMsg osm;
+    if (bytesAvailable > 0) { 
+      unsigned bytesRead = read(sockUDP, (char*)&osm, bytesAvailable);
+      struct in_addr ip_addr;
+      ip_addr.s_addr = osm.ipAddr;
+      printf("The IP address is %s\n", inet_ntoa(ip_addr));
+
+      bzero((char *)&serverTCP, lengthServerTCP);
+      serverTCP.sin_family = AF_INET;
+      serverTCP.sin_addr.s_addr = osm.ipAddr;
+      serverTCP.sin_port = htons(PORT_TCP);
 
   // Create the TCP socket for main communication or exit
   sockTCP = socket(AF_INET, SOCK_STREAM, 0);
@@ -163,6 +174,10 @@ int main(int argc, char **argv) {
                  sizeof(keepalive)) < 0)
     error("Error keeping alive option set for TCP socket");
   listen(sockTCP, 5);
+      break;
+    }
+    ros::Duration(1.0).sleep();
+  }
 
   // Setup Sonar and messages
   // Pass the socket to the control
@@ -181,8 +196,8 @@ int main(int argc, char **argv) {
     ROS_ERROR("Failed to get param 'frame'");
     frame_str = "/sonar";
   }
-  sonar_cloud.header.frame_id = frame_str.c_str();
-  sonar_laserEQ.header.frame_id = frame_str.c_str();
+  // sonar_cloud.header.frame_id = frame_str.c_str();
+  // sonar_laserEQ.header.frame_id = frame_str.c_str();
 
   // Run continously
   ros::Rate r(50); // pvt: sonar should be under 40Hz (reduced 100 to 50)
@@ -201,11 +216,11 @@ int main(int argc, char **argv) {
       latest_id = id;
 
       // Resize PointCloud and channel for intensities
-      sonar_cloud.header.stamp = ros::Time::now();
-      sonar_cloud.points.resize(nbeams * nbins);
-      sonar_cloud.channels.resize(1);
-      sonar_cloud.channels[0].name = "Intensity";
-      sonar_cloud.channels[0].values.resize(nbeams * nbins);
+      // sonar_cloud.header.stamp = ros::Time::now();
+      // sonar_cloud.points.resize(nbeams * nbins);
+      // sonar_cloud.channels.resize(1);
+      // sonar_cloud.channels[0].name = "Intensity";
+      // sonar_cloud.channels[0].values.resize(nbeams * nbins);
 
       // sonar image
       if ( m750d.m_readData.m_osBuffer[0].m_rawSize){
@@ -242,6 +257,8 @@ int main(int argc, char **argv) {
 
         // sonar ping
         sonar_oculus::OculusPing ping_msg;
+        ping_msg.header.frame_id = frame_str;
+        ping_msg.header.stamp = fire_msg.header.stamp;
         ping_msg.ping = sonar_image;
         ping_msg.fire_msg = fire_msg;
         ping_msg.ping_id = id;
@@ -253,6 +270,9 @@ int main(int argc, char **argv) {
           m750d.m_readData.m_osBuffer[0].m_rfm.speedOfSoundUsed;
 
         ping_msg.start_time = m750d.m_readData.m_osBuffer[0].m_rfm.pingStartTime;
+        ping_msg.bearings.resize(nbeams);
+        for (int i = 0; i < nbeams; ++i)
+            ping_msg.bearings[i] = m750d.m_readData.m_osBuffer[0].m_pBrgs[i];
         ping_msg.range_resolution =
           m750d.m_readData.m_osBuffer[0].m_rfm.rangeResolution;
         ping_msg.num_ranges = nbins;
@@ -265,70 +285,70 @@ int main(int argc, char **argv) {
       r_step = m750d.m_readData.m_osBuffer[0].m_rfm.rangeResolution;
 
       // Set LaserScan parameters, which may change if user modifies
-      sonar_laserEQ.header.stamp = ros::Time::now();
-      sonar_laserEQ.angle_min =
-          (float)m750d.m_readData.m_osBuffer[0].m_pBrgs[0] * PI / 18000.0;
-      sonar_laserEQ.angle_max =
-          (float)m750d.m_readData.m_osBuffer[0].m_pBrgs[nbeams - 1] * PI /
-          18000.0;
-      sonar_laserEQ.angle_increment =
-          PI / 18000; //(sonar_laserEQ.angle_max-sonar_laserEQ.angle_min) /
-                      //(nbeams-1);//need to take out min and max end points
-      sonar_laserEQ.time_increment = 0; //(1/10.0); // Ping rate is 10 hz
-      sonar_laserEQ.scan_time = 1;
-      sonar_laserEQ.range_min = 0.1;   // meters, min per spec sheet
-      sonar_laserEQ.range_max = range; // meters, max set by user up to 120m
-      lbeams_EQ = ((int)m750d.m_readData.m_osBuffer[0].m_pBrgs[nbeams - 1] -
-                   (int)m750d.m_readData.m_osBuffer[0].m_pBrgs[0]);
-      sonar_laserEQ.ranges.assign(lbeams_EQ, 0.0);
-      sonar_laserEQ.intensities.assign(lbeams_EQ, 0.0);
+      // sonar_laserEQ.header.stamp = ros::Time::now();
+      // sonar_laserEQ.angle_min =
+      //     (float)m750d.m_readData.m_osBuffer[0].m_pBrgs[0] * PI / 18000.0;
+      // sonar_laserEQ.angle_max =
+      //     (float)m750d.m_readData.m_osBuffer[0].m_pBrgs[nbeams - 1] * PI /
+      //     18000.0;
+      // sonar_laserEQ.angle_increment =
+      //     PI / 18000; //(sonar_laserEQ.angle_max-sonar_laserEQ.angle_min) /
+      //                 //(nbeams-1);//need to take out min and max end points
+      // sonar_laserEQ.time_increment = 0; //(1/10.0); // Ping rate is 10 hz
+      // sonar_laserEQ.scan_time = 1;
+      // sonar_laserEQ.range_min = 0.1;   // meters, min per spec sheet
+      // sonar_laserEQ.range_max = range; // meters, max set by user up to 120m
+      // lbeams_EQ = ((int)m750d.m_readData.m_osBuffer[0].m_pBrgs[nbeams - 1] -
+      //              (int)m750d.m_readData.m_osBuffer[0].m_pBrgs[0]);
+      // sonar_laserEQ.ranges.assign(lbeams_EQ, 0.0);
+      // sonar_laserEQ.intensities.assign(lbeams_EQ, 0.0);
 
       // Generate PoinCloud data
-      for (unsigned int i = 0; i < nbins; i++) {
-        for (unsigned int j = 0; j < nbeams; j++) {
-          // Cloud parameters
-          // Generate X,Y,Z coordinates from swath data
-          if (nbins != nbins_prev || nbeams != nbeams_prev) {
-            sonar_cloud.points[i * nbeams + j].x =
-                cos((float)m750d.m_readData.m_osBuffer[0].m_pBrgs[j] * PI /
-                    18000.0) *
-                (i * r_step);
-            sonar_cloud.points[i * nbeams + j].y =
-                sin((float)m750d.m_readData.m_osBuffer[0].m_pBrgs[j] * PI /
-                    18000.0) *
-                (i * r_step);
-            sonar_cloud.points[i * nbeams + j].z = 0;
-          }
-          // Assigned intensities
-          sonar_cloud.channels[0].values[i * nbeams + j] =
-              m750d.m_readData.m_osBuffer[0].m_pImage[i * nbeams + j];
-          // ROS_INFO("Bearings: %5.5f",
-          // (float)m750d.m_readData.m_osBuffer[0].m_pBrgs[j]);
-        } // for nbeams
-      }   // for nbins
+      // for (unsigned int i = 0; i < nbins; i++) {
+      //   for (unsigned int j = 0; j < nbeams; j++) {
+      //     // Cloud parameters
+      //     // Generate X,Y,Z coordinates from swath data
+      //     if (nbins != nbins_prev || nbeams != nbeams_prev) {
+      //       sonar_cloud.points[i * nbeams + j].x =
+      //           cos((float)m750d.m_readData.m_osBuffer[0].m_pBrgs[j] * PI /
+      //               18000.0) *
+      //           (i * r_step);
+      //       sonar_cloud.points[i * nbeams + j].y =
+      //           sin((float)m750d.m_readData.m_osBuffer[0].m_pBrgs[j] * PI /
+      //               18000.0) *
+      //           (i * r_step);
+      //       sonar_cloud.points[i * nbeams + j].z = 0;
+      //     }
+      //     // Assigned intensities
+      //     sonar_cloud.channels[0].values[i * nbeams + j] =
+      //         m750d.m_readData.m_osBuffer[0].m_pImage[i * nbeams + j];
+      //     // ROS_INFO("Bearings: %5.5f",
+      //     // (float)m750d.m_readData.m_osBuffer[0].m_pBrgs[j]);
+      //   } // for nbeams
+      // }   // for nbins
 
       // Generate LaserScan Range data
-      for (unsigned int j = 0; j < nbeams; j++) {
-        for (unsigned int i = 0; i < nbins - 10; i++) {
-          windowed_avg = 0.0;
-          for (unsigned int zz = 0; zz < 10; zz++) {
-            windowed_avg +=
-                m750d.m_readData.m_osBuffer[0].m_pImage[i * nbeams + j];
-          }
-          windowed_avg /= 10.0;
-          // Determine first echo that exceeds predefined threshold for laser
-          // equivalent
-          if (windowed_avg > threshold) {
-            lbeam_current = (float)m750d.m_readData.m_osBuffer[0].m_pBrgs[j] -
-                            (float)m750d.m_readData.m_osBuffer[0].m_pBrgs[0];
-            // Ensure bounded for array
-            if (unsigned(lbeam_current) < lbeams_EQ) {
-              sonar_laserEQ.ranges[(unsigned)lbeam_current] = r_step * i;
-            }
-            break;
-          }
-        }
-      }
+      // for (unsigned int j = 0; j < nbeams; j++) {
+      //   for (unsigned int i = 0; i < nbins - 10; i++) {
+      //     windowed_avg = 0.0;
+      //     for (unsigned int zz = 0; zz < 10; zz++) {
+      //       windowed_avg +=
+      //           m750d.m_readData.m_osBuffer[0].m_pImage[i * nbeams + j];
+      //     }
+      //     windowed_avg /= 10.0;
+      //     // Determine first echo that exceeds predefined threshold for laser
+      //     // equivalent
+      //     if (windowed_avg > threshold) {
+      //       lbeam_current = (float)m750d.m_readData.m_osBuffer[0].m_pBrgs[j] -
+      //                       (float)m750d.m_readData.m_osBuffer[0].m_pBrgs[0];
+      //       // Ensure bounded for array
+      //       if (unsigned(lbeam_current) < lbeams_EQ) {
+      //         sonar_laserEQ.ranges[(unsigned)lbeam_current] = r_step * i;
+      //       }
+      //       break;
+      //     }
+      //   }
+      // }
 
       nbins_prev = nbins;
       nbeams_prev = nbeams;
@@ -341,8 +361,8 @@ int main(int argc, char **argv) {
       //%5.5f ... m750d.m_readData.m_osBuffer[0].m_rfm.frequency);
 
       // Publish sonar data and laserEQ
-      pub.publish(sonar_cloud);
-      pub2.publish(sonar_laserEQ);
+      // pub.publish(sonar_cloud);
+      // pub2.publish(sonar_laserEQ);
       // ping_pub.publish(sonar_ping);
       // ROS_INFO("Pinging...");
     } // if (nbins>0 && nbeams>0 && id>latest_id)
