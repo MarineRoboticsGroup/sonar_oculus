@@ -429,8 +429,18 @@ void OsClientCtrl::Fire(int mode, double range, double gain, double speedOfSound
     sfm.head.dstDeviceId = 0;
     sfm.head.oculusId    = 0x4f53;
 
-    sfm.flags = 0x00;             // 0x10 = Turn on the gain assistance, 0x00 = off
-    sfm.flags           |= 0x09;  // b0:m/%, b1:8/16bit, b2:gain prepend, b3: simple/complex return
+    // Always allow the range to be set as metres
+    uint8_t flags = 0x01; //flagsRangeInMeters;
+    if (false)
+        flags |= 0x10; //flagsGainAssist;
+
+    flags |= 0x08;
+
+    // ##### Enable 512 beams #####
+    flags |= 0x40;
+    // ############################
+
+    sfm.flags = flags;                        // Turn on the gain assistance
     sfm.gammaCorrection = 0x7f;
     sfm.pingRate      = pingRateNormal;
     sfm.networkSpeed  = 0x00;
