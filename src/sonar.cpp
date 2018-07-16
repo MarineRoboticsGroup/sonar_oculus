@@ -31,7 +31,7 @@
 #include <dynamic_reconfigure/server.h>
 #include <sonar_oculus/OculusParamsConfig.h>
 
-#define BUFLEN 200
+// #define BUFLEN 200
 #define DATALEN 200000
 #define PORT_UDP 52102
 #define PORT_TCP 52100
@@ -89,27 +89,19 @@ int main(int argc, char **argv) {
 
   // Communications
   struct sockaddr_in serverUDP, clientUDP;
-  struct sockaddr_in serverTCP, clientTCP;
-  int sockUDP, sockTCP, sockTCPfd, datagramSize, n;
+  struct sockaddr_in serverTCP; //, clientTCP;
+  int sockUDP, sockTCP;         // sockTCPfd, datagramSize, n;
   int buf_size = DATALEN;
   int keepalive = 1;
   socklen_t lengthServerUDP, lengthClientUDP;
-  socklen_t lengthServerTCP, lengthClientTCP;
-  char datagramMessage[BUFLEN], buffer[BUFLEN], sonardata[DATALEN];
+  socklen_t lengthServerTCP; //, lengthClientTCP;
+  // char datagramMessage[BUFLEN], buffer[BUFLEN], sonardata[DATALEN];
 
   // Create sonar oculus control class
   OsClientCtrl m750d;
 
   // Sonar info
-  unsigned int nbins = 0;
-  unsigned int nbins_prev = 0;
-  unsigned int nbeams = 0;
-  unsigned int nbeams_prev = 0;
-  float r_step = 0.0;
-  float windowed_avg = 0.0;
-  unsigned int lbeams_EQ = 0;
-  float lbeam_current = 0.0;
-
+  unsigned int nbeams = 0, nbins = 0;
   std::string frame_str;
 
   // Clear and intialize values of server and client network info
@@ -174,7 +166,6 @@ int main(int argc, char **argv) {
   // Pass the socket to the control
   m750d.m_readData.m_pSocket = &sockTCP;
 
-  // Connect and instance a thread
   m750d.Connect();
 
   ROS_INFO("Connected!");
@@ -223,8 +214,7 @@ int main(int argc, char **argv) {
         std::copy(m750d.m_readData.m_osBuffer[0].m_pImage,
                   m750d.m_readData.m_osBuffer[0].m_pImage + nbins * nbeams,
                   sonar_image.data.begin());
-
-        // img_pub.publish(sonar_image);
+        // img_pub.publish(sonar_image); // uncomment to bypass the python viewer
 
         // fire msg
         sonar_oculus::OculusFire fire_msg;
@@ -260,7 +250,7 @@ int main(int argc, char **argv) {
         ping_msg.start_time =
             m750d.m_readData.m_osBuffer[0].m_rfm.pingStartTime;
         ping_msg.bearings.resize(nbeams);
-        for (int i = 0; i < nbeams; ++i)
+        for (unsigned int i = 0; i < nbeams; ++i)
           ping_msg.bearings[i] = m750d.m_readData.m_osBuffer[0].m_pBrgs[i];
         ping_msg.range_resolution =
             m750d.m_readData.m_osBuffer[0].m_rfm.rangeResolution;
@@ -269,12 +259,6 @@ int main(int argc, char **argv) {
 
         ping_pub.publish(ping_msg);
       }
-
-      // Acquire sonar range spatial data
-      r_step = m750d.m_readData.m_osBuffer[0].m_rfm.rangeResolution;
-
-      nbins_prev = nbins;
-      nbeams_prev = nbeams;
 
     } // if (nbins>0 && nbeams>0 && id>latest_id)
 
@@ -286,7 +270,6 @@ int main(int argc, char **argv) {
   }
 
   ROS_INFO("Disconnecting...");
-  // Disconnect and close
   m750d.Disconnect();
 
   // Exit
