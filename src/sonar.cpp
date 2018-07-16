@@ -36,14 +36,14 @@
 #define PORT_UDP 52102
 #define PORT_TCP 52100
 //#define SONAR_ADDR "169.254.37.89"
-#define SONAR_ADDR "169.254.30.199"
-//#define SONAR_ADDR "10.0.0.128"
+#define SONAR_ADDR "192.168.2.4" // TODO: make this a command line argument
 #define PI 3.14159265359
 
 // Global sonar configuration
+// TODO: move these into a SonarConfig class to avoid global variables
 int mode = 1;             // 0 => dev/not used, 1 => ~750khz, 2 => ~1.2Mhz.
 double range = 10;        // m, limited to 120m in mode 1, and 40m in mode 2
-double gain = 20;         //%
+double gain = 20;         // %
 double soundspeed = 1500; // m/s
 double salinity = 0;      // ppm, 0 = freshwater, 35=saltwater
 int threshold = 90;       // intensity threshold
@@ -76,7 +76,8 @@ int main(int argc, char **argv) {
 
   unsigned int latest_id = 0; // keep track of latest ping to avoid republishing
 
-  ros::Publisher pub, pub2, ping_pub;
+  ros::Publisher img_pub, ping_pub;
+  img_pub = nh.advertise<sensor_msgs::Image>("image", 1);
   ping_pub = nh.advertise<sonar_oculus::OculusPing>("ping", 1);
 
   // Setup dynamic server
@@ -86,7 +87,6 @@ int main(int argc, char **argv) {
   f = boost::bind(&callback, _1, _2);
   serverParam.setCallback(f);
 
-  // Variable declarations
   // Communications
   struct sockaddr_in serverUDP, clientUDP;
   struct sockaddr_in serverTCP, clientTCP;
@@ -122,8 +122,7 @@ int main(int argc, char **argv) {
 
   lengthClientUDP = sizeof(clientUDP);
   lengthServerTCP = sizeof(serverTCP);
-  
-  ROS_INFO("Connecting...");
+
   // Create the UDP listening socket or exit
   sockUDP = socket(AF_INET, SOCK_DGRAM, 0);
   if (sockUDP < 0)
@@ -134,13 +133,14 @@ int main(int argc, char **argv) {
     error("Error binding UDP listening socket");
   listen(sockUDP, 5);
 
+  ROS_INFO("Connecting");
   while (true) {
     int64_t bytesAvailable;
     ioctl(sockUDP, FIONREAD, &bytesAvailable);
 
     OculusStatusMsg osm;
-    if (bytesAvailable > 0) { 
-      unsigned bytesRead = read(sockUDP, (char*)&osm, bytesAvailable);
+    if (bytesAvailable > 0) {
+      unsigned bytesRead = read(sockUDP, (char *)&osm, bytesAvailable);
       struct in_addr ip_addr;
       ip_addr.s_addr = osm.ipAddr;
       printf("The IP address is %s\n", inet_ntoa(ip_addr));
@@ -150,28 +150,30 @@ int main(int argc, char **argv) {
       serverTCP.sin_addr.s_addr = osm.ipAddr;
       serverTCP.sin_port = htons(PORT_TCP);
 
-  // Create the TCP socket for main communication or exit
-  sockTCP = socket(AF_INET, SOCK_STREAM, 0);
-  if (sockTCP < 0)
-    error("Error opening TCP main socket");
-  // Connect to the sonar Server via TCP socket or exit with error
-  if (connect(sockTCP, (struct sockaddr *)&serverTCP, lengthServerTCP) < 0)
-    error("Error connecting TCP socket");
-  if (setsockopt(sockTCP, SOL_SOCKET, SO_RCVBUF, &buf_size, sizeof(buf_size)) <
-      0)
-    error("Error increasing RCVBUF for TCP socket");
-  if (setsockopt(sockTCP, SOL_SOCKET, SO_KEEPALIVE, &keepalive,
-                 sizeof(keepalive)) < 0)
-    error("Error keeping alive option set for TCP socket");
-  listen(sockTCP, 5);
+      // Create the TCP socket for main communication or exit
+      sockTCP = socket(AF_INET, SOCK_STREAM, 0);
+      if (sockTCP < 0)
+        error("Error opening TCP main socket");
+      // Connect to the sonar Server via TCP socket or exit with error
+      if (connect(sockTCP, (struct sockaddr *)&serverTCP, lengthServerTCP) < 0)
+        error("Error connecting TCP socket");
+      if (setsockopt(sockTCP, SOL_SOCKET, SO_RCVBUF, &buf_size,
+                     sizeof(buf_size)) < 0)
+        error("Error increasing RCVBUF for TCP socket");
+      if (setsockopt(sockTCP, SOL_SOCKET, SO_KEEPALIVE, &keepalive,
+                     sizeof(keepalive)) < 0)
+        error("Error keeping alive option set for TCP socket");
+      listen(sockTCP, 5);
       break;
     }
+    ROS_INFO(".");
     ros::Duration(1.0).sleep();
   }
 
   // Setup Sonar and messages
   // Pass the socket to the control
   m750d.m_readData.m_pSocket = &sockTCP;
+
   // Connect and instance a thread
   m750d.Connect();
 
@@ -189,11 +191,13 @@ int main(int argc, char **argv) {
   // sonar_cloud.header.frame_id = frame_str.c_str();
   // sonar_laserEQ.header.frame_id = frame_str.c_str();
 
+  ROS_INFO("Entering publishing loop!");
+
   // Run continously
-  ros::Rate r(50); // pvt: sonar should be under 40Hz (reduced 100 to 50)
+  ros::Rate r(10); // pvt: sonar should be under 40Hz (reduced 100 to 50)
   while (ros::ok()) {
 
-    // Run the readthread sonar
+    // Run the read thread sonar
     m750d.m_readData.run();
 
     // Get bins and beams #.
@@ -205,10 +209,9 @@ int main(int argc, char **argv) {
     if (nbeams > 0 && nbins > 0 && id > latest_id) {
       latest_id = id;
 
-
       // sonar image
-      if ( m750d.m_readData.m_osBuffer[0].m_rawSize){
-      //if (0){
+      if (m750d.m_readData.m_osBuffer[0].m_rawSize) {
+        // if (0){
         sensor_msgs::Image sonar_image;
         sonar_image.header.stamp = ros::Time::now();
         sonar_image.height = nbins;
@@ -218,26 +221,27 @@ int main(int argc, char **argv) {
         sonar_image.step = nbins;
         sonar_image.data.resize(nbeams * nbins);
         std::copy(m750d.m_readData.m_osBuffer[0].m_pImage,
-                  m750d.m_readData.m_osBuffer[0].m_pImage +
-                  nbins*nbeams,
+                  m750d.m_readData.m_osBuffer[0].m_pImage + nbins * nbeams,
                   sonar_image.data.begin());
+
+        // img_pub.publish(sonar_image);
 
         // fire msg
         sonar_oculus::OculusFire fire_msg;
         fire_msg.header.stamp = ros::Time::now();
 
         fire_msg.mode =
-          m750d.m_readData.m_osBuffer[0].m_rfm.fireMessage.masterMode;
+            m750d.m_readData.m_osBuffer[0].m_rfm.fireMessage.masterMode;
         fire_msg.gamma =
-          m750d.m_readData.m_osBuffer[0].m_rfm.fireMessage.gammaCorrection;
+            m750d.m_readData.m_osBuffer[0].m_rfm.fireMessage.gammaCorrection;
         fire_msg.flags = m750d.m_readData.m_osBuffer[0].m_rfm.fireMessage.flags;
         fire_msg.range = m750d.m_readData.m_osBuffer[0].m_rfm.fireMessage.range;
         fire_msg.gain =
-          m750d.m_readData.m_osBuffer[0].m_rfm.fireMessage.gainPercent;
+            m750d.m_readData.m_osBuffer[0].m_rfm.fireMessage.gainPercent;
         fire_msg.speed_of_sound =
-          m750d.m_readData.m_osBuffer[0].m_rfm.fireMessage.speedOfSound;
+            m750d.m_readData.m_osBuffer[0].m_rfm.fireMessage.speedOfSound;
         fire_msg.salinity =
-          m750d.m_readData.m_osBuffer[0].m_rfm.fireMessage.salinity;
+            m750d.m_readData.m_osBuffer[0].m_rfm.fireMessage.salinity;
 
         // sonar ping
         sonar_oculus::OculusPing ping_msg;
@@ -251,14 +255,15 @@ int main(int argc, char **argv) {
         ping_msg.temperature = m750d.m_readData.m_osBuffer[0].m_rfm.temperature;
         ping_msg.pressure = m750d.m_readData.m_osBuffer[0].m_rfm.pressure;
         ping_msg.speed_of_sound =
-          m750d.m_readData.m_osBuffer[0].m_rfm.speedOfSoundUsed;
+            m750d.m_readData.m_osBuffer[0].m_rfm.speedOfSoundUsed;
 
-        ping_msg.start_time = m750d.m_readData.m_osBuffer[0].m_rfm.pingStartTime;
+        ping_msg.start_time =
+            m750d.m_readData.m_osBuffer[0].m_rfm.pingStartTime;
         ping_msg.bearings.resize(nbeams);
         for (int i = 0; i < nbeams; ++i)
-            ping_msg.bearings[i] = m750d.m_readData.m_osBuffer[0].m_pBrgs[i];
+          ping_msg.bearings[i] = m750d.m_readData.m_osBuffer[0].m_pBrgs[i];
         ping_msg.range_resolution =
-          m750d.m_readData.m_osBuffer[0].m_rfm.rangeResolution;
+            m750d.m_readData.m_osBuffer[0].m_rfm.rangeResolution;
         ping_msg.num_ranges = nbins;
         ping_msg.num_beams = nbeams;
 
@@ -280,6 +285,7 @@ int main(int argc, char **argv) {
     ros::spinOnce();
   }
 
+  ROS_INFO("Disconnecting...");
   // Disconnect and close
   m750d.Disconnect();
 
