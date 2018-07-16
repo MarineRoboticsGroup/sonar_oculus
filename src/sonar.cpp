@@ -1,29 +1,17 @@
 // VSieben@slb.com (original author, 2017)
 // pvt@mit.edu     (extensions, 2018)
 
-#include <algorithm>
 #include <arpa/inet.h>
 #include <iostream>
-#include <math.h>
-#include <netdb.h>
-#include <netinet/in.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <string>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
-#include <sys/types.h>
-#include <unistd.h>
 
-#include "Oculus.h"
 #include "OculusClient.h"
 
 // ROS includes
 #include <ros/ros.h>
 #include <sensor_msgs/Image.h>
-#include <sensor_msgs/LaserScan.h>
-#include <sensor_msgs/PointCloud.h>
 #include <sonar_oculus/OculusFire.h>
 #include <sonar_oculus/OculusPing.h>
 
