@@ -77,7 +77,7 @@ def ping_callback(msg):
 def config_callback(config, level):
     global cm, raw
     cm = config['Colormap']
-    raw = config['Raw']
+    raw = config['Polar']
     return config
 
 
