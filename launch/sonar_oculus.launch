@@ -9,7 +9,8 @@
   <!-- processes -->
   <arg name="run_publisher" default="true"/>
   <arg name="run_ranger" default="false"/>
-  <arg name="run_rqt" default="true"/>
+  <arg name="run_rqt" default="false"/>
+  <arg name="run_rviz" default="false"/>
   <arg name="run_viewer" default="true"/>
   <arg name="run_writer" default="false"/>
 
@@ -42,6 +43,6 @@
         args="0 0 0 3.14159265359 0 0 /local_origin /sonar"/>
 
   <!-- Open RVIZ with default parameters -->
-  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find sonar_oculus)/launch/default.rviz"/>
+  <node if="$(arg run_rviz)" name="rviz" pkg="rviz" type="rviz" args="-d $(find sonar_oculus)/launch/default.rviz"/>
 
 </launch>
