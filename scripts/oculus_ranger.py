@@ -12,12 +12,14 @@ from sonar_oculus.cfg import OculusParamsConfig
 
 bridge = cv_bridge.CvBridge()
 
-global threshold,scan_pub
+global threshold
+global scan_pub
 
 to_rad = lambda bearing: bearing * np.pi / 18000
 
 def ping_callback(msg):
-    global threshold,scan_pub
+    global threshold
+    global scan_pub
 
     img = bridge.imgmsg_to_cv2(msg.ping, desired_encoding="passthrough")
 
@@ -27,6 +29,7 @@ def ping_callback(msg):
     # create and publish message
     scan_msg = LaserScan()
     scan_msg.header= msg.header
+    scan_msg.header.frame_id = "multibeam_hf"
     scan_msg.angle_min = az[0]
     scan_msg.angle_max = az[-1]
     scan_msg.angle_increment = ( az[-1]-az[0] )/msg.num_beams
@@ -44,7 +47,7 @@ def ping_callback(msg):
         else:
             scan_msg.ranges.append(-1.0)
             scan_msg.intensities.append(0)
-
+            
     scan_pub.publish(scan_msg)
 
 def config_callback(config, level):

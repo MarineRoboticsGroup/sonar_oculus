@@ -6,12 +6,12 @@
   <!-- options -->
   <arg name="static_sonar" default="false"/>
 
-  <!-- processes -->
+  <!-- processes: by default, those used in operations are set to true -->
   <arg name="run_publisher" default="true"/>
-  <arg name="run_ranger" default="false"/>
+  <arg name="run_ranger" default="true"/>
   <arg name="run_rqt" default="false"/>
   <arg name="run_rviz" default="false"/>
-  <arg name="run_viewer" default="true"/>
+  <arg name="run_viewer" default="false"/>
   <arg name="run_writer" default="false"/>
 
   <!-- parameters -->
@@ -25,11 +25,11 @@
 
   <node if="$(arg run_writer)" name="sonar_oculus_writer" pkg="sonar_oculus" type="oculus_writer.py" output="screen"/>
 
-  <node if="$(arg run_ranger)" name="sonar_oculus_ranger" pkg="sonar_oculus" type="oculus_ranger.py" output="screen" respawn="false"/>
+  <node if="$(arg run_ranger)" name="sonar_oculus_ranger" pkg="sonar_oculus" type="oculus_ranger.py" output="screen" respawn="true" respawn_delay="10"/>
 
-  <node unless="$(arg run_rqt)" name="image_view" pkg="image_view" type="image_view" output="screen">
-    <remap from="image" to="/sonar_oculus_node/image"/>
-  </node>
+  <!-- <node unless="$(arg run_rqt)" name="image_view" pkg="image_view" type="image_view" output="screen"> -->
+  <!--   <remap from="image" to="/sonar_oculus_node/image"/> -->
+  <!-- </node> -->
 
   <!-- Open a reconfigure window for adjusting sonar properties -->
   <node unless="$(arg run_rqt)" name="rqt_reconfigure" pkg="rqt_reconfigure" type="rqt_reconfigure"/>
