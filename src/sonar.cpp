@@ -165,7 +165,7 @@ int main(int argc, char **argv) {
     ROS_INFO("Got param: %s", frame_str.c_str());
   } else {
     ROS_ERROR("Failed to get param 'frame'");
-    frame_str = "/sonar";
+    frame_str = "sonar";
   }
   // sonar_cloud.header.frame_id = frame_str.c_str();
   // sonar_laserEQ.header.frame_id = frame_str.c_str();
