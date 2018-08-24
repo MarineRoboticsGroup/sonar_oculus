@@ -27,10 +27,10 @@ While there are currently no releases, we plan to create a tag for every field e
 Use the `sonar_oculus.launch` launch file and its arguments to control which processes to run
 
 ### Options
- * `static_sonar` - starts a `static_transform_publisher` that publishes a static transform between the `/sonar` and `/local_origin` reference frames (default=false)
+ * `static_sonar` - starts a `static_transform_publisher` that publishes a static transform between the `sonar` and local_origin` reference frames (default=false)
 
 ### Parameters
- * `sonar_frame` - the name of the sonar reference frame (default: /sonar)
+ * `sonar_frame` - the name of the sonar reference frame (default: sonar)
 
 ### Processses
 
