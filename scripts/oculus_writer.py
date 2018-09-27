@@ -1,4 +1,8 @@
 #!/usr/bin/env python
+__author__     = "Pedro Vaz Teixeira"
+__email__      = "pvt@mit.edu"
+__status__     = "Development"
+
 import cv2
 import json
 import numpy as np
@@ -16,6 +20,12 @@ bridge = cv_bridge.CvBridge()
 def update_config(msg):
     global oculus
     update = False
+
+    if (msg.frequency != oculus.frequency):
+        oculus.frequency = msg.frequency
+        oculus.fov = msg.bearings[-1] - msg.bearings[0] + 0.0
+        oculus.fov*= (np.pi/18000.0)
+        update=True
 
     if (msg.fire_msg.range != oculus.max_range):
         oculus.max_range = msg.fire_msg.range
@@ -64,11 +74,13 @@ def ping_callback(msg):
     cfg={}
     cfg['min_range'] = msg.fire_msg.range - msg.num_ranges*msg.range_resolution
     cfg['max_range'] = msg.fire_msg.range
-    cfg['fov'] = 2.27 # 130 degrees
+    cfg['fov'] = msg.bearings[-1] - msg.bearings[0] + 0.0
+    cfg['fov']*= (np.pi/18000.0)
+
     cfg['num_beams'] = msg.num_beams
     cfg['num_bins'] = msg.num_ranges
-    cfg['psf'] = 1
-    cfg['noise'] = 1
+    cfg['psf'] = 1   # unknown
+    cfg['noise'] = 1 # unknown
     cfg['temperature'] = msg.temperature
     cfg['frequency'] = msg.frequency
     cfg['id'] = msg.ping_id
@@ -77,6 +89,9 @@ def ping_callback(msg):
     cfg['gain'] = msg.fire_msg.gain 
     cfg['speed_of_sound'] = msg.fire_msg.speed_of_sound 
     cfg['salinity'] = msg.fire_msg.salinity 
+    azi = np.array(msg.bearings).astype(np.float64)
+    azi*=(np.pi/18000.0)
+    cfg['azimuths'] = azi.tolist()
 
     with open(fn+'.json', 'w') as fp:
       json.dump(cfg, fp, sort_keys=True, indent=2)
@@ -88,10 +103,11 @@ if __name__ == '__main__':
 
     oculus.min_range = 0.0085
     oculus.max_range = 28.0
-    oculus.fov = 2.27
+    oculus.fov = 2.268928 
     oculus.num_beams=512
     oculus.num_bins = 697
     oculus.noise = 0.02
+    oculus.frequency =  750000
 
     rospy.init_node('oculus_writer')
 
