@@ -24,7 +24,13 @@ from sonar import Sonar
 bridge = cv_bridge.CvBridge()
 
 def update_config(msg):
-    """Update the sonar object configuration based on the latest message"""
+    """
+    Update the sonar object configuration based on the latest message.
+    An update is required if there has been a change in any of:
+    - window range (min or max range)
+    - number of range samples
+    - field of view (will change with frequency)
+    """
     global oculus
     update = False
 
@@ -38,6 +44,9 @@ def update_config(msg):
         oculus.max_range = msg.fire_msg.range
         update = True
 
+    if msg.fire_msg.gain != oculus.rx_gain:
+        oculus.rx_gain = msg.fire_msg.gain
+
     min_range = msg.fire_msg.range - msg.num_ranges*msg.range_resolution
 
     if min_range != oculus.min_range:
@@ -49,15 +58,20 @@ def update_config(msg):
         update = True
 
     if update:
-        rospy.loginfo('updated sonar config; recomputing lookup table')
-        oculus.__computeLookUp__(0.02)
-        oculus.printConfig()
+        rospy.loginfo('Sonar configuration changed; updating...')
+        azi = np.array(msg.bearings).astype(np.float64)
+        azi *= (np.pi/18000.0)
+        oculus.__update_azimuths__(azi)
+        radial_res = oculus.max_range/(oculus.num_bins+0.0)
+        oculus.__compute_lookup__(radial_res)
+        oculus.print_config()
 
 def ping_callback(msg):
     """callback function for new Ping messages"""
     rospy.logdebug("received ping")
 
-    cfg = {} # object to store config
+    update_config(msg)
+    global oculus
 
     img = bridge.imgmsg_to_cv2(msg.ping, desired_encoding="passthrough")
     timestamp = int(round(msg.header.stamp.to_nsec()*1e-3))
@@ -68,47 +82,20 @@ def ping_callback(msg):
     filename = str(timestamp)
     cv2.imwrite('polar_'+filename+'.png', img) # will end up inside $HOME/.ros
 
-    # update config
-    update_config(msg)
-    # rospy.logdebug("width: %s",msg.ping.width)
-    # rospy.logdebug("height: %s",msg.ping.height)
-    # rospy.logdebug("num_ranges: %s",msg.num_ranges)
-    # rospy.logdebug("num_beams: %s",msg.num_beams)
-
-    global oculus
-    # convert to cartesian
     img_t = np.copy(img)
-    # img_t = np.transpose(img)
-    img_xy = oculus.toCart(img_t)
-    # write as cartesian
+    img_xy = oculus.to_cart(img_t) # convert to cartesian
     cv2.imwrite('cart_'+filename+'.png', img_xy) # will end up inside $HOME/.ros
 
     cfg = {}
-    cfg['min_range'] = msg.fire_msg.range - msg.num_ranges*msg.range_resolution
-    cfg['max_range'] = msg.fire_msg.range
-    cfg['fov'] = msg.bearings[-1] - msg.bearings[0] + 0.0
-    cfg['fov'] *= (np.pi/18000.0)
-
-    cfg['num_beams'] = msg.num_beams
-    cfg['num_bins'] = msg.num_ranges
-    cfg['psf'] = 1   # unknown
-    cfg['noise'] = 1 # unknown
-    cfg['taper'] = 1 # unknown
     cfg['temperature'] = msg.temperature
     cfg['frequency'] = msg.frequency
     cfg['id'] = msg.ping_id
-
-    cfg['range'] = msg.fire_msg.range
-    cfg['gain'] = msg.fire_msg.gain
     cfg['speed_of_sound'] = msg.fire_msg.speed_of_sound
     cfg['salinity'] = msg.fire_msg.salinity
-    azi = np.array(msg.bearings).astype(np.float64)
-    azi *= (np.pi/18000.0)
-    cfg['azimuths'] = azi.tolist()
+    cfg['timestamp'] = timestamp
 
-    with open(filename+'.json', 'w') as fptr:
-        json.dump(cfg, fptr, sort_keys=True, indent=2)
-
+    # save configuration and additional parameters defined above
+    oculus.save_config(filename+'.json', cfg)
 
 if __name__ == '__main__':
     global oculus
@@ -119,9 +106,10 @@ if __name__ == '__main__':
     oculus.max_range = 28.0
     oculus.fov = 2.268928
     oculus.num_beams = 512
-    oculus.num_bins = 697
+    oculus.num_bins = 1
     oculus.noise = 0.02
     oculus.frequency = 750000
+    oculus.init()
 
     rospy.init_node('oculus_writer')
 
