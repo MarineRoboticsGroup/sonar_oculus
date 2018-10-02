@@ -52,8 +52,12 @@ def ping_callback(msg):
     cfg = {} # object to store config
 
     img = bridge.imgmsg_to_cv2(msg.ping, desired_encoding="passthrough")
-    fn = str(int(round(msg.header.stamp.to_nsec()*1e-3)))
-    # rospy.loginfo(fn)
+    ts = int(round(msg.header.stamp.to_nsec()*1e-3))
+    if ts < 1500000000000000: # ~ July 2017
+        rospy.logwarn("Got bad timestamp, defaulting to current time!"
+        ts = int(round(rospy.Time.now().to_nsec()*1e-3))
+
+    fn = str(ts)
     cv2.imwrite('polar_'+fn+'.png',img) # will end up inside $HOME/.ros
 
     # update config
