@@ -2,35 +2,35 @@
 
 <launch>
 
-  <!-- Start the sonar reading -->
-  <node name="sonar_oculus_node"
-        pkg="sonar_oculus"
-        type="sonar_oculus_node"
-        output="screen"
-        respawn="true"
-        respawn_delay="5">
-    <!-- Set ROS parameters -->
-    <param name="frame" type="string" value="/sonar"/>
+<!-- options -->
+  <arg name="static_sonar" default="false"/>
+
+  <!-- processes: by default, those used in operations are set to true -->
+  <arg name="run_publisher" default="true"/>
+  <arg name="run_ranger" default="true"/>
+  <arg name="run_rqt" default="false"/>
+  <arg name="run_rviz" default="false"/>
+  <arg name="run_viewer" default="true"/>
+  <arg name="run_writer" default="false"/>
+
+  <!-- parameters -->
+  <arg name="sonar_frame" default="/sonar"/>
+
+  <node if="$(arg run_publisher)" name="sonar_oculus_node" pkg="sonar_oculus" type="sonar_oculus_node" output="screen" respawn="true" respawn_delay="5">
+    <param name="frame" type="string" value="$(arg sonar_frame)"/>
   </node>
 
-  <!-- Establish a static transform to link rviz map to sonar -->
-  <node name="sonar_base_link"
-  pkg="tf2_ros"
-  type="static_transform_publisher"
-  args="0 0 0 3.14159265359 0 0 /base_link /sonar">
-  </node>
+  <node if="$(arg run_viewer)" name="sonar_oculus_viewer" pkg="sonar_oculus" type="oculus_viewer.py" output="screen"/>
 
-  <!-- Open RVIZ with default parameters -->
-  <node name="rviz"
-  pkg="rviz"
-  type="rviz"
-  args="-d $(find sonar_oculus)/launch/default_pipe.rviz">
-  </node>
+  <node if="$(arg run_writer)" name="sonar_oculus_writer" pkg="sonar_oculus" type="oculus_writer.py" output="screen"/>
+
+  <node if="$(arg run_ranger)" name="sonar_oculus_ranger" pkg="sonar_oculus" type="oculus_ranger.py" output="screen" respawn="true" respawn_delay="10"/>
 
   <!-- Open a reconfigure window for adjusting sonar properties -->
-  <node name="rqt_reconfigure"
-  pkg="rqt_reconfigure"
-  type="rqt_reconfigure">
-  </node>
+  <node unless="$(arg run_rqt)" name="rqt_reconfigure" pkg="rqt_reconfigure" type="rqt_reconfigure"/>
+
+  <!-- Open RVIZ with default parameters -->
+  <node if="$(arg run_rviz)" name="rviz" pkg="rviz" type="rviz" args="-d $(find sonar_oculus)/launch/default.rviz"/>
+
 
 </launch>

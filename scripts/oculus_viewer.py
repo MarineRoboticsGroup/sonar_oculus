@@ -1,6 +1,12 @@
 #!/usr/bin/env python
 import numpy as np
 import cv2
+import sys
+import roslib
+import math
+import csv
+import time
+import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
 
 import rospy
