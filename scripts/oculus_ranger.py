@@ -6,6 +6,7 @@ from scipy.interpolate import interp1d
 import rospy
 import cv_bridge
 from sonar_oculus.msg import OculusPing
+from geometry_msgs.msg import Point
 from sensor_msgs.msg import Image, LaserScan, PointCloud
 from dynamic_reconfigure.server import Server
 from sonar_oculus.cfg import OculusParamsConfig
@@ -52,7 +53,7 @@ def ping_callback(msg):
 
             br = idx*msg.range_resolution
             ba = az[beam]
-            pt = Point32()
+            pt = Point()
             pt.x = br*np.cos(ba)
             pt.y = br*np.sin(ba) 
             pt.z = 0.0
@@ -64,7 +65,6 @@ def ping_callback(msg):
     cloud_pub.publish(cloud_msg)
 
     
-
 def config_callback(config, level):
     global threshold
     threshold = config['Threshold']

@@ -6,13 +6,15 @@ This repository contains a ROS driver for Blueprint Subsea's Oculus series of mu
 
 ## Dependencies
 
+ * Blueprint Oculus SDK, currently included within the `src` directory. 
+
 ## Installation
 
 Clone this repository into the `src` directory of your ROS workspace, and run `catkin_make` from its top directory:
 
 ```sh
 cd src
-git clone --recursive ssh://slb-swt@vs-ssh.visualstudio.com:22/SDR/_ssh/sonar_oculus
+git clone --recursive slb-swt@vs-ssh.visualstudio.com:v3/slb-swt/marine-robotics/sonar_oculus
 cd ..
 catkin_make
 ```
@@ -20,7 +22,6 @@ catkin_make
 ## Releases
 
 While there are currently no releases, we plan to create a tag for every field experiment.
-
 
 ## Usage
 

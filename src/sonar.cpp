@@ -1,6 +1,13 @@
-// VSieben@slb.com (original author, 2017)
-// pvt@mit.edu     (extensions, 2018)
-
+/**
+ * @file sonar.cpp
+ * @author Vincent Sieben (VSieben@slb.com)
+ * @author Pedro Vaz Teixeira (pvt@mit.edu)
+ * @brief ROS publisher for Blueprint Oculus multibeam sonars
+ * @version 0.1
+ * 
+ * @copyright Copyright (c) 2019
+ * 
+ */
 #include <arpa/inet.h>
 #include <iostream>
 #include <string>
@@ -36,13 +43,22 @@ double soundspeed = 1500; // m/s
 double salinity = 0;      // ppm, 0 = freshwater, 35=saltwater
 int threshold = 90;       // intensity threshold
 
-// Error handling function
+/**
+ * @brief Error handling function
+ * 
+ * @param msg Error message
+ */
 void error(const char *msg) {
   perror(msg);
   exit(0);
 }
 
-// Callback for dynamic reconfigure server
+/**
+ * @brief Dynamic reconfigure server callback
+ * 
+ * @param config 
+ * @param level 
+ */
 void callback(sonar_oculus::OculusParamsConfig &config, uint32_t level) {
   mode = config.Mode;
   gain = config.Gain;
