@@ -52,7 +52,7 @@ def ping_callback(msg):
             scan_msg.intensities.append(img[idx,beam])
 
             br = idx*msg.range_resolution
-            ba = az[beam]
+            ba = -az[beam] # TODO: confirm
             pt = Point()
             pt.x = br*np.cos(ba)
             pt.y = br*np.sin(ba) 
