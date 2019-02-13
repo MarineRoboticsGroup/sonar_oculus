@@ -32,7 +32,7 @@ def ping_callback(msg):
     # create and publish messages
     scan_msg = LaserScan()
     scan_msg.header= msg.header
-    scan_msg.header.frame_id = "multibeam_hf"
+    scan_msg.header.frame_id = "sonar"
     scan_msg.angle_min = az[0]
     scan_msg.angle_max = az[-1]
     scan_msg.angle_increment = ( az[-1]-az[0] )/msg.num_beams
@@ -57,6 +57,7 @@ def ping_callback(msg):
             pt.x = br*np.cos(ba)
             pt.y = br*np.sin(ba) 
             pt.z = 0.0
+            cloud_msg.points.append(pt)
         else:
             scan_msg.ranges.append(-1.0)
             scan_msg.intensities.append(0)
@@ -72,11 +73,11 @@ def config_callback(config, level):
 
 if __name__ == '__main__':
     rospy.init_node('oculus_ranger')
-    ping_sub = rospy.Subscriber('/sonar_oculus_node/ping', OculusPing, ping_callback, None, 10)
+    ping_sub = rospy.Subscriber('/sonar/ping', OculusPing, ping_callback, None, 10)
     server = Server(OculusParamsConfig, config_callback)
 
     global scan_pub, cloud_pub
-    scan_pub = rospy.Publisher('/sonar_oculus_node/scan', LaserScan, queue_size=50)
-    cloud_pub = rospy.Publisher('/sonar_oculus_node/cloud',PointCloud, queue_size=50)
+    scan_pub = rospy.Publisher('/sonar/scan', LaserScan, queue_size=50)
+    cloud_pub = rospy.Publisher('/sonar/cloud',PointCloud, queue_size=50)
 
     rospy.spin()

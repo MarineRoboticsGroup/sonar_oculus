@@ -83,8 +83,8 @@ def config_callback(config, level):
 
 if __name__ == '__main__':
     rospy.init_node('oculus_viewer')
-    img_pub = rospy.Publisher('/sonar_oculus_node/image', Image, queue_size=10)
-    ping_sub = rospy.Subscriber('/sonar_oculus_node/ping', OculusPing, ping_callback, None, 10)
+    img_pub = rospy.Publisher('/sonar/image', Image, queue_size=10)
+    ping_sub = rospy.Subscriber('/sonar/ping', OculusPing, ping_callback, None, 10)
     server = Server(OculusParamsConfig, config_callback)
 
     rospy.spin()

@@ -17,7 +17,7 @@
   <!-- parameters -->
   <arg name="sonar_frame" default="sonar"/>
 
-  <node if="$(arg run_publisher)" name="sonar_oculus_node" pkg="sonar_oculus" type="sonar_oculus_node" output="screen" respawn="true" respawn_delay="5">
+  <node if="$(arg run_publisher)" name="sonar" pkg="sonar_oculus" type="sonar_oculus_node" output="screen" respawn="true" respawn_delay="5">
     <param name="frame" type="string" value="$(arg sonar_frame)"/>
   </node>
 
@@ -28,7 +28,7 @@
   <node if="$(arg run_ranger)" name="sonar_oculus_ranger" pkg="sonar_oculus" type="oculus_ranger.py" output="screen" respawn="true" respawn_delay="10"/>
 
   <!-- <node unless="$(arg run_rqt)" name="image_view" pkg="image_view" type="image_view" output="screen"> -->
-  <!--   <remap from="image" to="/sonar_oculus_node/image"/> -->
+  <!--   <remap from="image" to="/sonar/image"/> -->
   <!-- </node> -->
 
   <!-- Open a reconfigure window for adjusting sonar properties -->

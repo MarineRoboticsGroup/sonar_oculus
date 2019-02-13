@@ -75,7 +75,7 @@ void callback(sonar_oculus::OculusParamsConfig &config, uint32_t level) {
 int main(int argc, char **argv) {
   // Initialize ROS
   ROS_INFO("Initializing...");
-  ros::init(argc, argv, "sonar_oculus");
+  ros::init(argc, argv, "sonar");
   ros::NodeHandle nh("~");
 
   unsigned int latest_id = 0; // keep track of latest ping to avoid republishing

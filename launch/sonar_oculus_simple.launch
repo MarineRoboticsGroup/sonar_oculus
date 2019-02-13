@@ -3,9 +3,9 @@
 <launch>
 
   <!-- Start the sonar reading -->
-  <node name="sonar_oculus_node"
+  <node name="sonar"
         pkg="sonar_oculus"
-        type="sonar_oculus_node"
+        type="sonar"
         output="screen"
         respawn="true"
         respawn_delay="5">

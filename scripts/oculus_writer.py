@@ -113,6 +113,6 @@ if __name__ == '__main__':
 
     rospy.init_node('oculus_writer')
 
-    ping_sub = rospy.Subscriber('/sonar_oculus_node/ping', OculusPing, ping_callback, None, 10)
+    ping_sub = rospy.Subscriber('/sonar/ping', OculusPing, ping_callback, None, 10)
 
     rospy.spin()
