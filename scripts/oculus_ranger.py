@@ -29,7 +29,7 @@ class Ranger:
       self.sonar.load_config(cfg_file)
     else:
       # no config file found
-      rospy.WARN('No sonar config file found; using defaults')
+      rospy.logwarn('No sonar config file found; using defaults')
 
     # subscribe to topics
     self.ping_sub = rospy.Subscriber('/sonar_oculus_node/ping', OculusPing, self.ping_callback, None, 100)
