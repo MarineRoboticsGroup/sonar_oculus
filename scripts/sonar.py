@@ -87,7 +87,8 @@ class Sonar(object):
                 #if len(cfg['psf']) == self.num_beams:
                 if cfg['psf'] != 1:
                     self.psf = np.array(cfg['psf'])
-                    self.psf.shape = (1, self.num_beams)
+                    self.psf /= np.sum(self.psf)
+                    self.psf.shape = (1, len(self.psf))
 
             if 'taper' in cfg:
                 if cfg['taper'] != 1:
@@ -116,7 +117,6 @@ class Sonar(object):
         cfg['num_bins'] = self.num_bins
         cfg['noise'] = self.noise
         cfg['rx_gain'] = self.rx_gain
-
 
         cfg['psf'] = np.squeeze(self.psf).tolist()
         cfg['azimuths'] = self.azimuths.tolist()
