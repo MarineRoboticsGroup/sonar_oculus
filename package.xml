@@ -3,8 +3,11 @@
   <name>sonar_oculus</name>
   <version>1.0.0</version>
   <description>The sonar_oculus package</description>
-  <maintainer email="vsieben@slb.com">Vincent Sieben</maintainer>
+  <author>Vincent Sieben</author>
+  <author>Pedro Vaz Teixeira</author>
+  <author>Timothy Osedach</author>
   <maintainer email="pvt@mit.edu">Pedro Vaz Teixeira</maintainer>
+  <maintainer email="tosedach@slb.com">Timothy Osedach</maintainer>
   <license>Schlumberger retains all rights and privledges</license>
 
   <buildtool_depend>catkin</buildtool_depend>
