@@ -10,6 +10,8 @@
  * 
  */
 
+// https://beej.us/guide/bgnet/html/multi/inet_ntoaman.html
+
 #include <arpa/inet.h>
 #include <iostream>
 #include <string>
@@ -69,6 +71,83 @@ void callback(sonar_oculus::OculusParamsConfig &config, uint32_t level) {
            config.Speed, config.Range, config.Salinity);
 }
 
+void get_oculus_ip_address(struct in_addr &ip_address) {
+  struct sockaddr_in serverUDP, clientUDP;
+  int sockUDP;  
+  int buf_size = DATALEN;
+  int keepalive = 1;
+  socklen_t lengthServerUDP, lengthClientUDP;
+
+  // Clear and initialize values of server and client network info
+  lengthServerUDP = sizeof(serverUDP);
+  bzero((char *)&serverUDP, lengthServerUDP);
+  serverUDP.sin_family = AF_INET;
+  serverUDP.sin_addr.s_addr = htonl(INADDR_ANY);
+  serverUDP.sin_port = htons(PORT_UDP);
+  lengthClientUDP = sizeof(clientUDP);
+
+  // Create the UDP listening socket or exit
+  sockUDP = socket(AF_INET, SOCK_DGRAM, 0);
+  if (sockUDP < 0)
+    error("Error opening UDP listening socket");
+
+  // Bind the UDP socket to address and port, or exit with error
+  if (bind(sockUDP, (struct sockaddr *)&serverUDP, lengthServerUDP) < 0)
+    error("Error binding UDP listening socket");
+  listen(sockUDP, 5);
+
+  int64_t bytesAvailable = 0;
+  OculusStatusMsg osm;
+
+  while (true) {
+    ioctl(sockUDP, FIONREAD, &bytesAvailable);
+    if (bytesAvailable > 0) {
+      unsigned bytesRead = read(sockUDP, (char *)&osm, bytesAvailable);
+      close(sockUDP);
+      ip_address.s_addr = osm.ipAddr;
+      //printf("The IP address is %s\n", inet_ntoa(ip_address));
+      break;
+    }
+    else {
+      // Do Nothing
+    }
+      
+    ROS_INFO(".");
+    ros::Duration(1.0).sleep();
+  }
+}
+
+int get_socket(struct in_addr ip_address) {     /// WHY IS THIS A PROBLEM???  in_addr not highlighting...
+  struct sockaddr_in serverTCP; 
+  int sockTCP;  
+  int buf_size = DATALEN;
+  int keepalive = 1;
+  socklen_t lengthServerTCP; 
+
+  bzero((char *)&serverTCP, lengthServerTCP);
+  serverTCP.sin_family = AF_INET;
+  serverTCP.sin_addr.s_addr = ip_address.s_addr;
+  serverTCP.sin_port = htons(PORT_TCP);
+  lengthServerTCP = sizeof(serverTCP);
+
+  // Create the TCP socket for main communication or exit
+  sockTCP = socket(AF_INET, SOCK_STREAM, 0);
+  if (sockTCP < 0)
+    error("Error opening TCP main socket");
+
+  // Connect to the sonar Server via TCP socket or exit with error
+  if (connect(sockTCP, (struct sockaddr *)&serverTCP, lengthServerTCP) < 0)
+    error("Error connecting TCP socket");
+  if (setsockopt(sockTCP, SOL_SOCKET, SO_RCVBUF, &buf_size, sizeof(buf_size)) < 0)
+    error("Error increasing RCVBUF for TCP socket");
+  if (setsockopt(sockTCP, SOL_SOCKET, SO_KEEPALIVE, &keepalive, sizeof(keepalive)) < 0)
+    error("Error keeping alive option set for TCP socket");
+  listen(sockTCP, 5);
+
+  return sockTCP;
+}
+
+
 // Main program for listening to sonar
 int main(int argc, char **argv) {
 
@@ -80,18 +159,20 @@ int main(int argc, char **argv) {
   // Sonar info
   unsigned int nbeams = 0, nbins = 0;
   std::string frame_str;
-  std::string ip_address;
-  bool auto_detect_sonar = true;  // flag to indicate whether or not a particular ip address is desired
+  std::string ip_address_str;
+  struct in_addr ip_address;
   unsigned int latest_id = 0; // keep track of latest ping to avoid republishing
+  int sockTCP;
 
   // Fetch needed ROS parameters
-  if (nh.getParam("ip_address", ip_address)) { 
-    ROS_INFO("Imported parameter, \"ip_address\": %s", ip_address.c_str());
-    auto_detect_sonar = false;
+  if (nh.getParam("ip_address", ip_address_str)) { 
+    inet_aton(ip_address_str.c_str(), &ip_address);
+    ROS_INFO("Imported parameter, \"ip_address\": %s", inet_ntoa(ip_address));
   }
   else { 
-    ROS_ERROR("Failed to import parameter, \"ip_address\".  Will attempt to autodetect sonar.");
-    auto_detect_sonar =  true;
+    ROS_WARN("Failed to import parameter, \"ip_address\".  Will attempt to autodetect sonar...");
+    get_oculus_ip_address(ip_address);
+    ROS_INFO("Oculus sonar detected at %s.", inet_ntoa(ip_address));
   }
 
   if (nh.getParam("frame", frame_str)) {
@@ -111,88 +192,14 @@ int main(int argc, char **argv) {
   f = boost::bind(&callback, _1, _2);
   serverParam.setCallback(f);
 
-  // Communications
-  struct sockaddr_in serverUDP, clientUDP;
-  struct sockaddr_in serverTCP; //, clientTCP;
-  int sockUDP, sockTCP;         // sockTCPfd, datagramSize, n;
-  int buf_size = DATALEN;
-  int keepalive = 1;
-  socklen_t lengthServerUDP, lengthClientUDP;
-  socklen_t lengthServerTCP; //, lengthClientTCP;
-
   // Create sonar oculus control class
   OsClientCtrl sonar;
 
-  // Clear and initialize values of server and client network info
-  lengthServerUDP = sizeof(serverUDP);
-  bzero((char *)&serverUDP, lengthServerUDP);
-  serverUDP.sin_family = AF_INET;
-  serverUDP.sin_addr.s_addr = htonl(INADDR_ANY);
-  serverUDP.sin_port = htons(PORT_UDP);
-
-  lengthClientUDP = sizeof(clientUDP);
-  lengthServerTCP = sizeof(serverTCP);
-
-  // Create the UDP listening socket or exit
-  sockUDP = socket(AF_INET, SOCK_DGRAM, 0);
-  if (sockUDP < 0)
-    error("Error opening UDP listening socket");
-
-  // Bind the UDP socket to address and port, or exit with error
-  if (bind(sockUDP, (struct sockaddr *)&serverUDP, lengthServerUDP) < 0)
-    error("Error binding UDP listening socket");
-  listen(sockUDP, 5);
-
-  if (auto_detect_sonar == true) {
-    ROS_INFO("Attempting to connect to Oculus Sonar...");
-  }
-  else {
-    ROS_INFO("Attempting to connect to Oculus Sonar at IP address, %s", ip_address.c_str());
-  }
-
-  while (true) {
-    OculusStatusMsg osm;
-    int64_t bytesAvailable;
-    ioctl(sockUDP, FIONREAD, &bytesAvailable);
-
-    if (bytesAvailable > 0) {
-      unsigned bytesRead = read(sockUDP, (char *)&osm, bytesAvailable);
-      struct in_addr ip_addr;
-      ip_addr.s_addr = osm.ipAddr;
-      //printf("The IP address is %s\n", inet_ntoa(ip_addr));
-      //ROS_INFO("Received sonar status message from IP address: %s\n", inet_ntoa(ip_addr));
-      //ROS_INFO("Looking for IP address %s\n", ip_address.c_str());
-
-
-      if ((inet_ntoa(ip_addr) == ip_address) || (auto_detect_sonar == true)) {
-        ROS_INFO("Sonar at IP address, %s, has been detected!", inet_ntoa(ip_addr));
-
-        bzero((char *)&serverTCP, lengthServerTCP);
-        serverTCP.sin_family = AF_INET;
-        serverTCP.sin_addr.s_addr = osm.ipAddr;
-        serverTCP.sin_port = htons(PORT_TCP);
-
-        // Create the TCP socket for main communication or exit
-        sockTCP = socket(AF_INET, SOCK_STREAM, 0);
-        if (sockTCP < 0)
-          error("Error opening TCP main socket");
-
-        // Connect to the sonar Server via TCP socket or exit with error
-        if (connect(sockTCP, (struct sockaddr *)&serverTCP, lengthServerTCP) < 0)
-          error("Error connecting TCP socket");
-        if (setsockopt(sockTCP, SOL_SOCKET, SO_RCVBUF, &buf_size, sizeof(buf_size)) < 0)
-          error("Error increasing RCVBUF for TCP socket");
-        if (setsockopt(sockTCP, SOL_SOCKET, SO_KEEPALIVE, &keepalive, sizeof(keepalive)) < 0)
-          error("Error keeping alive option set for TCP socket");
-        listen(sockTCP, 5);
-        break;
-      }
-    }
-      
-    ROS_INFO(".");
-    ros::Duration(1.0).sleep();
-  }
-  // Setup Sonar and messages
+  // Setup TCP connection with sonar
+  std::cout << "Getting socket!\n";   // magically needed
+  sockTCP = get_socket(ip_address);
+  //std::cout << "Got socket " << sockTCP << "\n";
+  std::cout << "Using socket: " << sockTCP << " for sonar at " << inet_ntoa(ip_address) << "\n";
   sonar.m_readData.m_pSocket = &sockTCP;   // Pass the socket to the control
 
   sonar.Connect();
@@ -282,7 +289,6 @@ int main(int argc, char **argv) {
   sonar.Disconnect();
 
   // close sockets
-  close(sockUDP);
   close(sockTCP);
   return 0;
 
