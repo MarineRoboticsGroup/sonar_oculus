@@ -10,6 +10,8 @@ import numpy as np
 
 import cv2
 
+import warnings
+
 logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
 
 class Sonar(object):
@@ -259,6 +261,7 @@ class Sonar(object):
 
         # currently, width is being ignored!
         # should actually take resolution [m/px] as argument
+        
     def to_cart(self, ping, background=0.0):
         """Convert sonar scan from polar to Cartesian
 
@@ -288,7 +291,10 @@ class Sonar(object):
         remove impulse response function from ping
         (derived from opencv's deconvolution sample)
         """
-        assert ping.shape == (self.num_bins, self.num_beams)
+        if ping.shape != (self.num_bins, self.num_beams):
+          # we can't deconvolve as our config is out of date!
+          warnings.warn('sonar config is out of date, skipping deconvolution')
+          return ping
         # convert to float, single channel
 
         ping = ping.astype(np.float64)
