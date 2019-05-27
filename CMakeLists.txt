@@ -99,9 +99,9 @@ generate_dynamic_reconfigure_options(
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
+   INCLUDE_DIRS include
 #  LIBRARIES sonar_oculus
-  CATKIN_DEPENDS roscpp std_msgs sensor_msgs pcl_conversions pcl_ros message_runtime
+   CATKIN_DEPENDS roscpp std_msgs sensor_msgs pcl_conversions pcl_ros message_runtime
 #  DEPENDS system_lib
 )
 
@@ -112,7 +112,7 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-# include
+ include
   ${catkin_INCLUDE_DIRS}
 )
 
@@ -129,7 +129,10 @@ include_directories(
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-add_executable(${PROJECT_NAME}_node src/sonar.cpp src/OculusClient.cpp)
+add_executable(${PROJECT_NAME}_node src/sonar.cpp src/OculusClient.cpp src/OculusSonar.cpp)
+#add_executable(${PROJECT_NAME}_node src/sonar.cpp src/OculusClient.cpp)
+#add_executable(${PROJECT_NAME}_node src/sonar.cpp)
+
 
 
 ## Rename C++ executable without prefix
@@ -174,11 +177,12 @@ install(PROGRAMS
 # )
 
 ## Mark cpp header files for installation
-# install(DIRECTORY include/${PROJECT_NAME}/
-#  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-#   FILES_MATCHING PATTERN "*.h"
-#   PATTERN ".svn" EXCLUDE
-# )
+install(DIRECTORY include/${PROJECT_NAME}/
+  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+  FILES_MATCHING PATTERN "*.h"
+  #FILES_MATCHING PATTERN "*.hpp"
+  PATTERN ".svn" EXCLUDE
+)
 
 ## Mark other files for installation (e.g. launch and bag files, etc.)
 # install(FILES
