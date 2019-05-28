@@ -8,7 +8,7 @@ import cv_bridge
 from sonar_oculus.msg import OculusPing
 from sensor_msgs.msg import Image
 from dynamic_reconfigure.server import Server
-from sonar_oculus.cfg import OculusParamsConfig
+from sonar_oculus.cfg import ViewerConfig
 
 REVERSE_Z = -1
 global res, height, rows, width, cols, map_x, map_y, f_bearings
@@ -85,6 +85,6 @@ if __name__ == '__main__':
     rospy.init_node('oculus_viewer')
     img_pub = rospy.Publisher('/sonar/image', Image, queue_size=10)
     ping_sub = rospy.Subscriber('/sonar/ping', OculusPing, ping_callback, None, 10)
-    server = Server(OculusParamsConfig, config_callback)
+    server = Server(ViewerConfig, config_callback)
 
     rospy.spin()

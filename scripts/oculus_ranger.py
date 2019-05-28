@@ -11,7 +11,7 @@ from sonar_oculus.msg import OculusPing
 from geometry_msgs.msg import Point
 from sensor_msgs.msg import Image, PointCloud
 from dynamic_reconfigure.server import Server
-from sonar_oculus.cfg import OculusParamsConfig
+from sonar_oculus.cfg import RangerConfig
 
 # sonar
 from sonar import Sonar
@@ -22,6 +22,17 @@ class Ranger:
   def __init__(self):
     self.bridge = cv_bridge.CvBridge()
 
+    # register parameter update callback
+    self.cfg_srv = Server(RangerConfig, self.config_callback)
+
+    # import threshold setting from ROS parameter server
+    try:
+      self.threshold = rospy.get_param('threshold')
+      print('Imported ROS parameter \'threshold\',', self.threshold)
+    except:
+      self.threshold = 90
+      print('Unable to import ROS parameter \'threshold\'.  Using default of 90.')
+      
     # initialize sonar pre-processor
     self.sonar = Sonar()
     cfg_file = 'config/oculus-m1200d.json'
@@ -34,9 +45,6 @@ class Ranger:
 
     # subscribe to topics
     self.ping_sub = rospy.Subscriber('/sonar/ping', OculusPing, self.ping_callback, None, 100)
-
-    # register parameter update callback
-    self.cfg_srv = Server(OculusParamsConfig, self.config_callback)
 
     # advertise topics
     self.cloud_publisher = rospy.Publisher('/sonar/cloud', PointCloud, queue_size=50)

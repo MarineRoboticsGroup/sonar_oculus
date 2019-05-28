@@ -123,7 +123,6 @@ void OculusSonar::fetch_ROS_parameters(ros::NodeHandle nh) {
   //this->settings.frequency_mode = FREQUENCY_MODE;
   //this->settings.range = RANGE;
   //this->settings.gain = GAIN;
-  //this->settings.threshold = THRESHOLD;
 
   std::string ip_address_str;
   if (nh.getParam("ip_address", ip_address_str)) { 
@@ -199,15 +198,6 @@ void OculusSonar::fetch_ROS_parameters(ros::NodeHandle nh) {
     ROS_ERROR("Failed to import parameter, \"gain\".  Using default (\"%f\").", GAIN);
     this->settings.gain = GAIN;  // default
   }  
-
-  if (nh.getParam("threshold", this->settings.threshold)) {
-    ROS_INFO("Imported parameter, \"threshold\": %f", this->settings.threshold);
-  } 
-  else {
-    ROS_ERROR("Failed to import parameter, \"threshold\".  Using default (\"%d\").", THRESHOLD);
-    this->settings.threshold = THRESHOLD;  // default
-  }  
-
 }
 
 /**
@@ -238,13 +228,11 @@ void OculusSonar::disconnect_from_oculus() {
  * @param frequency_mode   0: dev/not used, 1: ~750khz, 2: ~1.2Mhz
  * @param range            Range in m, limited to 120m in frequency_mode 1 and 40m in frequency_mode 2
  * @param gain             %
- * @param threshold        Intensity threshold
  */
-void OculusSonar::update_params(unsigned int frequency_mode, double range, double gain, double threshold) {
+void OculusSonar::update_params(unsigned int frequency_mode, double range, double gain) {
   this->settings.frequency_mode = frequency_mode;
   this->settings.range = range;
   this->settings.gain = gain;
-  this->settings.threshold = threshold;
 }
 
 /**
@@ -255,12 +243,11 @@ void OculusSonar::update_params(unsigned int frequency_mode, double range, doubl
  */
 void OculusSonar::reconfigure_callback(sonar_oculus::OculusParamsConfig &config, uint32_t level) {
   this->settings.frequency_mode = config.Mode;
-  this->settings.range = config.Range;
   this->settings.gain = config.Gain;
-  this->settings.threshold = config.Threshold;
+  this->settings.range = config.Range;
 
-  ROS_INFO("Reconfigure Request: mode: %i, range: %f, gain: %f, threshold: %f", 
-           config.Mode, config.Range, config.Gain, config.Threshold);
+  ROS_INFO("Reconfigure Request: mode: %i, gain: %i, range: %i", 
+           config.Mode, config.Gain, config.Range);
 }
 
 /**
@@ -427,11 +414,4 @@ double OculusSonar::get_range() {
  */
 double OculusSonar::get_gain() {
   return this->settings.gain;
-}
-
-/**
- * @brief Function to return intensity threshold setting
- */
-double OculusSonar::get_threshold() {
-  return this->settings.threshold;
 }

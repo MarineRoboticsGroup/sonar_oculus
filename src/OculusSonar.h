@@ -36,7 +36,6 @@
 #define FREQUENCY_MODE 0
 #define RANGE 5
 #define GAIN 20
-#define THRESHOLD 90
 #define SOUND_SPEED 1500
 #define SALINITY 0
 
@@ -45,7 +44,6 @@ struct SonarSettings {
     int frequency_mode;  // 0: dev/not used, 1: ~750khz, 2: ~1.2Mhz
     double range;                 // m, limited to 120m in frequency_mode 1 and 40m in frequency_mode 2
     double gain;                  // %
-    double threshold;             // intensity threshold
 };
 
 // Class to contain sonar configuration parameters
@@ -76,7 +74,7 @@ class OculusSonar {
     void connect_to_oculus();                                 // Method to establish TCP connection to sonar
     void disconnect_from_oculus();                            // Disconnect from sonar
     // Method to update a subset of parameters of a OculusSonar object
-    void update_params(unsigned int frequency_mode, double range, double gain, double threshold); 
+    void update_params(unsigned int frequency_mode, double range, double gain); 
 
     // Dynamic Reconfigure Callback
     void reconfigure_callback(sonar_oculus::OculusParamsConfig &config, uint32_t level);
@@ -97,7 +95,6 @@ class OculusSonar {
     unsigned int get_frequency_mode();
     double get_range();
     double get_gain();
-    double get_threshold();
 };
 
 #endif
