@@ -260,7 +260,7 @@ void OculusSonar::reconfigure_callback(sonar_oculus::OculusParamsConfig &config,
   this->settings.threshold = config.Threshold;
 
   ROS_INFO("Reconfigure Request: mode: %i, range: %f, gain: %f, threshold: %f", 
-           config.Mode, config.Gain, config.Range, config.Threshold);
+           config.Mode, config.Range, config.Gain, config.Threshold);
 }
 
 /**
