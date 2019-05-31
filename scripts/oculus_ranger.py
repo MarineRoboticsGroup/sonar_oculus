@@ -27,7 +27,7 @@ class Ranger:
 
     # import threshold setting from ROS parameter server
     try:
-      self.threshold = rospy.get_param('threshold')
+      self.threshold = rospy.get_param(rospy.get_name()+'/threshold')
       print('Imported ROS parameter \'threshold\',', self.threshold)
     except:
       self.threshold = 90
