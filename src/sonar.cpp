@@ -45,22 +45,30 @@ int main(int argc, char **argv) {
 
   ROS_INFO("Entering publishing loop!");
 
+  ros::Rate sample_rate(sonar.get_rate_hz()); 
+  ros::Rate poll_rate(50); // pvt: sonar should be under 40Hz (reduced 100 to 50)
+
   // run continously
-  ros::Rate r(sonar.get_rate_hz()); // pvt: sonar should be under 40Hz (reduced 100 to 50)
   while (ros::ok()) {
 
-    if (sonar.read_from_oculus() > 0) {
-        sensor_msgs::Image sonar_image = sonar.get_image();        // image msg
-        sonar_oculus::OculusFire fire_msg = sonar.get_fire_msg();  // fire msg
-        sonar_oculus::OculusPing ping_msg = sonar.get_ping_msg(sonar_image, fire_msg);  // sonar ping
+    while (ros::ok()) {
+      if (sonar.read_from_oculus() > 0) {
+          sensor_msgs::Image sonar_image = sonar.get_image();        // image msg
+          sonar_oculus::OculusFire fire_msg = sonar.get_fire_msg();  // fire msg
+          sonar_oculus::OculusPing ping_msg = sonar.get_ping_msg(sonar_image, fire_msg);  // sonar ping
 
-        // img_pub.publish(sonar_image); // uncomment to bypass the python viewer (oculus_viewer.py)
-        ping_pub.publish(ping_msg);
-    } 
+          // img_pub.publish(sonar_image); // uncomment to bypass the python viewer (oculus_viewer.py)
+          ping_pub.publish(ping_msg);
+          break;
+      } 
+
+      poll_rate.sleep();
+      //ros::spinOnce();  // tpo: is this needed?
+    }
 
     sonar.fire_oculus(); // fire sonar (so we sleep while the ping travels)
-    r.sleep();
-    ros::spinOnce();
+    sample_rate.sleep();
+    //ros::spinOnce();    // tpo: is this needed?
   }
 
   ROS_INFO("Disconnecting...");
