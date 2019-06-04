@@ -6,6 +6,7 @@ from scipy.interpolate import interp1d
 
 # ROS
 import rospy
+import rospkg
 import cv_bridge
 from sonar_oculus.msg import OculusPing
 from geometry_msgs.msg import Point
@@ -21,27 +22,43 @@ to_rad = lambda bearing: bearing * np.pi / 18000
 class Ranger:
   def __init__(self):
     self.bridge = cv_bridge.CvBridge()
+    
+    # import threshold setting from ROS parameter server
+    try:
+      self.threshold = rospy.get_param(rospy.get_name()+'/threshold')
+      rospy.loginfo('Imported ROS parameter \'threshold\': '+str(self.threshold))
+    except:
+      self.threshold = 90
+      rospy.logwarn('Unable to import ROS parameter \'threshold\'.  Using default: '+str(self.threshold))
+
+    # import multibeam sonar model name from ROS parameter server
+    try:
+      self.config_path = rospy.get_param(rospy.get_name()+'/config_path')
+      rospy.loginfo('Imported ROS parameter \'config_path\': '+str(self.config_path))
+    except:
+      self.config_path = None
+      rospy.logwarn('Unable to import ROS parameter \'config_path\'.  Using default: '+str(self.config_path))
 
     # register parameter update callback
     self.cfg_srv = Server(RangerConfig, self.config_callback)
 
-    # import threshold setting from ROS parameter server
-    try:
-      self.threshold = rospy.get_param(rospy.get_name()+'/threshold')
-      print('Imported ROS parameter \'threshold\',', self.threshold)
-    except:
-      self.threshold = 90
-      print('Unable to import ROS parameter \'threshold\'.  Using default of 90.')
-      
     # initialize sonar pre-processor
     self.sonar = Sonar()
-    cfg_file = 'config/oculus-m1200d.json'
-    if os.path.isfile(cfg_file):
-      #self.sonar.load_config(cfg_file)
-      x = 1
+
+
+    rospack = rospkg.RosPack()
+    self.config_path = os.path.join(rospack.get_path('sonar_oculus'), self.config_path)
+    
+    if os.path.isfile(self.config_path):
+      try:
+        self.sonar.load_config(self.config_path)
+        rospy.loginfo('Successfully loaded sonar config file: '+str(self.config_path))
+      except:
+        rospy.logerror('Error loading sonar config file: '+str(self.config_path))
     else:
       # no config file found
-      rospy.logwarn('No sonar config file found; using defaults')
+      rospy.logwarn('No sonar config file found at path, \''+str(self.config_path)+'\'.  Using defaults...')
+      cwd = os.getcwd()
 
     # subscribe to topics
     self.ping_sub = rospy.Subscriber('/sonar/ping', OculusPing, self.ping_callback, None, 100)
@@ -89,6 +106,7 @@ class Ranger:
     Configuration callback.
     """
     self.threshold = config['Threshold']
+    print('Updated Oculus Ranger threshold:', self.threshold)
     return config
  
 

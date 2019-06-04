@@ -4,12 +4,21 @@
 
 /**
  * @brief Constructor for OculusSonar class
+ * 
+ *  * @param msg nh ROS node handle
  */
-OculusSonar::OculusSonar(void) {
+OculusSonar::OculusSonar(ros::NodeHandle nh) {
+  // Initialize ROS node handle and parameters
+  this->nh = nh;
+  this->fetch_ROS_parameters();     // Get parameters from ROS parameters server (or default)
+  this->ping_pub = this->nh.advertise<sonar_oculus::OculusPing>("ping", 1);
+
+  // Setup trigger service
+  this->trigger_srv = this->nh.advertiseService("trigger", &OculusSonar::trigger_sonar, this);
 
   // Setup dynamic reconfigure server
-  this->f = boost::bind(&OculusSonar::reconfigure_callback, this, _1, _2);
-  this->serverParam.setCallback(this->f);                     
+  this->f_reconfig = boost::bind(&OculusSonar::reconfigure_callback, this, _1, _2);
+  this->serverParam.setCallback(this->f_reconfig);   
 }
 
 // Functions for establishing socket communication with Oculus sonar
@@ -110,7 +119,7 @@ int OculusSonar::get_socket(struct in_addr ip_address) {
 /**
  * @brief Function to fetch sonar configuration parameters from the ROS parameter server
  */
-void OculusSonar::fetch_ROS_parameters(ros::NodeHandle nh) {
+void OculusSonar::fetch_ROS_parameters() {
 
   //debug
   //std::string ip_address_str = "192.168.2.4";
@@ -125,7 +134,7 @@ void OculusSonar::fetch_ROS_parameters(ros::NodeHandle nh) {
   //this->settings.gain = GAIN;
 
   std::string ip_address_str;
-  if (nh.getParam("ip_address", ip_address_str)) { 
+  if (this->nh.getParam("ip_address", ip_address_str)) { 
     inet_aton(ip_address_str.c_str(), &this->ip_address);
     ROS_INFO("Imported parameter, \"ip_address\": %s", inet_ntoa(ip_address));
   }
@@ -135,7 +144,7 @@ void OculusSonar::fetch_ROS_parameters(ros::NodeHandle nh) {
     ROS_INFO("Oculus sonar detected at %s.", inet_ntoa(this->ip_address));
   }
 
-  if (nh.getParam("/environment/sound_speed", this->sound_speed)) {
+  if (this->nh.getParam("/environment/sound_speed", this->sound_speed)) {
     ROS_INFO("Imported parameter, \"/environment/sound_speed\": %f", this->sound_speed);
   } 
   else {
@@ -143,7 +152,7 @@ void OculusSonar::fetch_ROS_parameters(ros::NodeHandle nh) {
     this->sound_speed = SOUND_SPEED;  // default
   }
 
-  if (nh.getParam("/environment/salinity", this->salinity)) {
+  if (this->nh.getParam("/environment/salinity", this->salinity)) {
     ROS_INFO("Imported parameter, \"/environment/salinity\": %f", this->salinity);
   } 
   else {
@@ -151,7 +160,7 @@ void OculusSonar::fetch_ROS_parameters(ros::NodeHandle nh) {
     this->salinity = SALINITY;  // default
   }
 
-  if (nh.getParam("frame", this->frame_str)) {
+  if (this->nh.getParam("frame", this->frame_str)) {
     ROS_INFO("Imported parameter, \"frame\": %s", this->frame_str.c_str());
   } 
   else {
@@ -159,7 +168,7 @@ void OculusSonar::fetch_ROS_parameters(ros::NodeHandle nh) {
     this->frame_str = SONAR_FRAME;  // default
   }
 
-  if (nh.getParam("trigger_mode", this->trigger_mode)) {
+  if (this->nh.getParam("trigger_mode", this->trigger_mode)) {
     ROS_INFO("Imported parameter, \"trigger_mode\": %i", this->trigger_mode);
   } 
   else {
@@ -167,7 +176,7 @@ void OculusSonar::fetch_ROS_parameters(ros::NodeHandle nh) {
     this->trigger_mode = TRIGGER_MODE;  // default
   }
 
-  if (nh.getParam("rate_hz", this->rate_hz)) {
+  if (this->nh.getParam("rate_hz", this->rate_hz)) {
     ROS_INFO("Imported parameter, \"rate_hz\": %f", this->rate_hz);
   } 
   else {
@@ -175,7 +184,7 @@ void OculusSonar::fetch_ROS_parameters(ros::NodeHandle nh) {
     this->rate_hz = RATE_HZ;  // default
   }  
 
-  if (nh.getParam("frequency_mode", this->settings.frequency_mode)) {
+  if (this->nh.getParam("frequency_mode", this->settings.frequency_mode)) {
     ROS_INFO("Imported parameter, \"frequency_mode\": %i", this->settings.frequency_mode);
   } 
   else {
@@ -183,7 +192,7 @@ void OculusSonar::fetch_ROS_parameters(ros::NodeHandle nh) {
     this->settings.frequency_mode = FREQUENCY_MODE;  // default
   }  
 
-  if (nh.getParam("range", this->settings.range)) {
+  if (this->nh.getParam("range", this->settings.range)) {
     ROS_INFO("Imported parameter, \"range\": %f", this->settings.range);
   } 
   else {
@@ -191,7 +200,7 @@ void OculusSonar::fetch_ROS_parameters(ros::NodeHandle nh) {
     this->settings.range = RANGE;  // default
   }  
 
-  if (nh.getParam("gain", this->settings.gain)) {
+  if (this->nh.getParam("gain", this->settings.gain)) {
     ROS_INFO("Imported parameter, \"gain\": %f", this->settings.gain);
   } 
   else {
@@ -260,6 +269,22 @@ void OculusSonar::fire_oculus() {
                             this->sound_speed, 
                             this->salinity);
 }
+
+/**
+ * @brief ROS service to trigger sonar ping acquisition
+ */ 
+bool OculusSonar::trigger_sonar(sonar_oculus::trigger::Request &req, sonar_oculus::trigger::Response &res) {
+  this->fire_oculus();      // fire sonar
+  ros::Rate poll_rate(POLL_RATE);
+  while (ros::ok()) {
+    if (this->check_for_ping() == true)
+      break;
+    poll_rate.sleep();
+    ros::spinOnce();  // tpo: is this needed?
+  }
+  return true;
+}
+
 
 /**
  * @brief Function to read the most recent data from the sonar
@@ -350,6 +375,23 @@ sonar_oculus::OculusPing OculusSonar::get_ping_msg(sensor_msgs::Image sonar_imag
   return ping_msg;
 }
 
+/**
+ * @brief Method to poll sonar for ping message and publish if one is received
+ */
+bool OculusSonar::check_for_ping() {
+  if (this->read_from_oculus() > 0) {
+      sensor_msgs::Image sonar_image = this->get_image();        // image msg
+      sonar_oculus::OculusFire fire_msg = this->get_fire_msg();  // fire msg
+      sonar_oculus::OculusPing ping_msg = this->get_ping_msg(sonar_image, fire_msg);  // sonar ping
+
+      this->ping_pub.publish(ping_msg);
+      return true;
+  } 
+  else {
+    return false;
+  }
+
+}
 
 // Member Get Methods
 

@@ -3,6 +3,8 @@
  * @brief Methods to facilitate configuration of Blueprint Subsea Oculus sonar
  *
  * @author Timothy Osedach (tosedach@slb.com)
+ * 
+ * @note Reference for socket.h:  http://man7.org/linux/man-pages/man2/socket.2.html
  */
 
 #ifndef OCULUSSONAR_H
@@ -23,6 +25,7 @@
 #include <sonar_oculus/OculusPing.h>
 
 #include "OculusClient.h"
+#include "sonar_oculus/trigger.h"
 
 // Socket Parameters
 #define DATALEN 200000
@@ -38,6 +41,7 @@
 #define GAIN 20
 #define SOUND_SPEED 1500
 #define SALINITY 0
+#define POLL_RATE 50
 
 // Struct to contain re-configurable sonar parameters
 struct SonarSettings {
@@ -50,6 +54,9 @@ struct SonarSettings {
 class OculusSonar {
   private:
     OsClientCtrl oculus_control;
+    ros::NodeHandle nh;
+    ros::Publisher ping_pub;            // publisher for sonar ping message
+    ros::ServiceServer trigger_srv;   // service to fire sonar and return sonar ping
     struct in_addr ip_address;
     int sockTCP;
     std::string frame_str;
@@ -59,18 +66,19 @@ class OculusSonar {
     double rate_hz;               // Hz
     struct SonarSettings settings;     
     unsigned int nbeams = 0, nbins = 0;
-    unsigned int latest_id = 0; // keep track of latest ping to avoid republishing
+    unsigned int latest_id = 0; // keep track of latest ping to avoid republishing 
     dynamic_reconfigure::Server<sonar_oculus::OculusParamsConfig> serverParam;
-    dynamic_reconfigure::Server<sonar_oculus::OculusParamsConfig>::CallbackType f;
+    dynamic_reconfigure::Server<sonar_oculus::OculusParamsConfig>::CallbackType f_reconfig;
+
 
   public:
-    OculusSonar(void);  // Constructor for SonarConfig class
+    OculusSonar(ros::NodeHandle nh);  // Constructor for SonarConfig class
 
     // Functions for establishing socket communication with Oculus sonar
     void error(const char *msg);                              // Error handling function
     void get_oculus_ip_address(struct in_addr &ip_address);   // Auto-detects IP address of oculus sonar
     int get_socket(struct in_addr ip_address);                // Returns TCP socket for communicating with sonar
-    void fetch_ROS_parameters(ros::NodeHandle nh);            // Method to fetch sonar configuration parameters from the ROS parameter server
+    void fetch_ROS_parameters();            // Method to fetch sonar configuration parameters from the ROS parameter server
     void connect_to_oculus();                                 // Method to establish TCP connection to sonar
     void disconnect_from_oculus();                            // Disconnect from sonar
     // Method to update a subset of parameters of a OculusSonar object
@@ -79,11 +87,15 @@ class OculusSonar {
     // Dynamic Reconfigure Callback
     void reconfigure_callback(sonar_oculus::OculusParamsConfig &config, uint32_t level);
 
+    // Trigger service Callback
+    bool trigger_sonar(sonar_oculus::trigger::Request &req, sonar_oculus::trigger::Response &res);
+
     void fire_oculus();                      // Method to fire the sonar
     int read_from_oculus();                  // Method to Read from the sonar
     sensor_msgs::Image get_image();          // Method to get a ROS image 
     sonar_oculus::OculusFire get_fire_msg(); // Method to get a ROS fire message
     sonar_oculus::OculusPing get_ping_msg(sensor_msgs::Image sonar_image, sonar_oculus::OculusFire fire_msg); // Method to get a ROS ping message
+    bool check_for_ping();      // Method to poll sonar for ping message and publish if one is received
 
     // Member Get Methods
     struct in_addr get_ip_address();

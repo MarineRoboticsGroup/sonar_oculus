@@ -6,6 +6,8 @@ add_compile_options(-std=c++11)
 
 find_package(catkin REQUIRED COMPONENTS
   roscpp
+  rospy
+  dynamic_reconfigure
   std_msgs
   sensor_msgs
   pcl_conversions
@@ -50,11 +52,10 @@ add_message_files(
 )
 
 ## Generate services in the 'srv' folder
-# add_service_files(
-#   FILES
-#   Service1.srv
-#   Service2.srv
-# )
+add_service_files(
+  FILES
+  trigger.srv
+)
 
 ## Generate actions in the 'action' folder
 # add_action_files(
@@ -103,7 +104,7 @@ generate_dynamic_reconfigure_options(
 catkin_package(
    INCLUDE_DIRS include
 #  LIBRARIES sonar_oculus
-   CATKIN_DEPENDS roscpp std_msgs sensor_msgs pcl_conversions pcl_ros message_runtime
+   CATKIN_DEPENDS roscpp dynamic_reconfigure std_msgs sensor_msgs pcl_conversions pcl_ros message_runtime
 #  DEPENDS system_lib
 )
 
@@ -122,6 +123,9 @@ include_directories(
 # add_library(${PROJECT_NAME}
 #   src/${PROJECT_NAME}/sonar_oculus.cpp
 # )
+
+#add_library(OculusClient include/OculusClient.cpp)
+#add_library(OculusSonar include/OculusSonar.cpp)
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
