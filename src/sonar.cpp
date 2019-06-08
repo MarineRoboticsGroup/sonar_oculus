@@ -27,29 +27,30 @@ int main(int argc, char **argv) {
   OculusSonar sonar(nh);          // Initialize Sonar
 
   ROS_INFO("Establishing TCP connection to sonar...");
-  sonar.connect_to_oculus();      // Establish TCP connection with sonar
-
+  //sonar.get_oculus_ip_address();      // Establish TCP connection with sonar
+  sonar.connect_to_oculus();
+  
   if (sonar.get_trigger_mode() == 0) {  // asynchronous mode
-    sonar.fire_oculus(); // Send Ping and initiate data collection
+
     ROS_INFO("Entering publishing loop!");
     ros::Rate sample_rate(sonar.get_rate_hz()); 
-    ros::Rate poll_rate(POLL_RATE);
+    sonar.fire_oculus(); // Send Ping and initiate data collection
     while (ros::ok()) {   // run continously
-      while (ros::ok()) {
-        if (sonar.check_for_ping() == true)
-          break;
-
-        poll_rate.sleep();
-        ros::spinOnce();  // tpo: is this needed?
+      if (sonar.process_ping() == true) {
+        //std::cout << "ping detected..." << std::endl;
+        sonar.fire_oculus();  
       }
 
-      sonar.fire_oculus();  // fire sonar (so we sleep while the ping travels)
+      //std::cout << "firing sonar..." << std::endl;
+      //sonar.fire_oculus();  // fire sonar (so we sleep while the ping travels)
+     
       sample_rate.sleep();
-      ros::spinOnce();    // tpo: is this needed?
+      ros::spinOnce();   
     }
   }
   else {  // external trigger mode
     ROS_INFO("Ready to fire sonar...");
+    sonar.fire_oculus(); // Send Ping and initiate data collection
     ros::spin();
   }
 

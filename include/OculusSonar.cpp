@@ -33,88 +33,6 @@ void OculusSonar::error(const char *msg) {
   exit(0);
 }
 
-/**
- * @brief Auto-detects IP address of oculus sonar
- * 
- * @param ip_address IP address of target sonar
- */
-void OculusSonar::get_oculus_ip_address(struct in_addr &ip_address) {
-  struct sockaddr_in serverUDP, clientUDP;
-  int sockUDP;  
-  int buf_size = DATALEN;
-  int keepalive = 1;
-  socklen_t lengthServerUDP, lengthClientUDP;
-
-  // Clear and initialize values of server and client network info
-  lengthServerUDP = sizeof(serverUDP);
-  bzero((char *)&serverUDP, lengthServerUDP);
-  serverUDP.sin_family = AF_INET;
-  serverUDP.sin_addr.s_addr = htonl(INADDR_ANY);
-  serverUDP.sin_port = htons(PORT_UDP);
-  lengthClientUDP = sizeof(clientUDP);
-
-  // Create the UDP listening socket or exit
-  sockUDP = socket(AF_INET, SOCK_DGRAM, 0);
-  if (sockUDP < 0)
-    OculusSonar::error("Error opening UDP listening socket");
-
-  // Bind the UDP socket to address and port, or exit with error
-  if (bind(sockUDP, (struct sockaddr *)&serverUDP, lengthServerUDP) < 0)
-    OculusSonar::error("Error binding UDP listening socket");
-  listen(sockUDP, 5);
-
-  int64_t bytesAvailable = 0;
-  OculusStatusMsg osm;
-
-  while (true) {
-    ioctl(sockUDP, FIONREAD, &bytesAvailable);
-    if (bytesAvailable > 0) {
-      unsigned bytesRead = read(sockUDP, (char *)&osm, bytesAvailable);
-      close(sockUDP);
-      ip_address.s_addr = osm.ipAddr;
-      //printf("The IP address is %s\n", inet_ntoa(ip_address));
-      break;
-    }
-      
-    ROS_INFO(".");
-    ros::Duration(1.0).sleep();
-  }
-}
-
-/**
- * @brief Returns TCP socket for communicating with sonar
- * 
- * @param ip_address IP address of target sonar
- */
-int OculusSonar::get_socket(struct in_addr ip_address) { 
-  struct sockaddr_in serverTCP; 
-  int sockTCP = 0;  
-  int buf_size = DATALEN;
-  int keepalive = 1;
-  socklen_t lengthServerTCP; 
-
-  bzero((char *)&serverTCP, lengthServerTCP);
-  serverTCP.sin_family = AF_INET;
-  serverTCP.sin_addr.s_addr = ip_address.s_addr;
-  serverTCP.sin_port = htons(PORT_TCP);
-  lengthServerTCP = sizeof(serverTCP);
-
-  // Create the TCP socket for main communication or exit
-  sockTCP = socket(AF_INET, SOCK_STREAM, 0);
-  if (sockTCP < 0)
-    OculusSonar::error("Error opening TCP main socket");
-
-  // Connect to the sonar Server via TCP socket or exit with error
-  if (connect(sockTCP, (struct sockaddr *)&serverTCP, lengthServerTCP) < 0)
-    OculusSonar::error("Error connecting TCP socket");
-  if (setsockopt(sockTCP, SOL_SOCKET, SO_RCVBUF, &buf_size, sizeof(buf_size)) < 0)
-    OculusSonar::error("Error increasing RCVBUF for TCP socket");
-  if (setsockopt(sockTCP, SOL_SOCKET, SO_KEEPALIVE, &keepalive, sizeof(keepalive)) < 0)
-    OculusSonar::error("Error keeping alive option set for TCP socket");
-  listen(sockTCP, 5);
-
-  return sockTCP;
-}
 
 /**
  * @brief Function to fetch sonar configuration parameters from the ROS parameter server
@@ -139,16 +57,16 @@ void OculusSonar::fetch_ROS_parameters() {
     ROS_INFO("Imported parameter, \"ip_address\": %s", inet_ntoa(ip_address));
   }
   else { 
-    ROS_WARN("Failed to import parameter, \"ip_address\". Will attempt to autodetect sonar...");
-    get_oculus_ip_address(this->ip_address);
-    ROS_INFO("Oculus sonar detected at %s.", inet_ntoa(this->ip_address));
+    ROS_WARN("Failed to import parameter, \"ip_address\". Using default (\"%s\").", IP_ADDRESS);
+    ip_address_str = IP_ADDRESS;
+    inet_aton(ip_address_str.c_str(), &this->ip_address);
   }
 
   if (this->nh.getParam("/environment/sound_speed", this->sound_speed)) {
     ROS_INFO("Imported parameter, \"/environment/sound_speed\": %f", this->sound_speed);
   } 
   else {
-    ROS_ERROR("Failed to import parameter, \"/environment/sound_speed\". Using default (\"%f\").", SOUND_SPEED);
+    ROS_WARN("Failed to import parameter, \"/environment/sound_speed\". Using default (\"%f\").", SOUND_SPEED);
     this->sound_speed = SOUND_SPEED;  // default
   }
 
@@ -156,7 +74,7 @@ void OculusSonar::fetch_ROS_parameters() {
     ROS_INFO("Imported parameter, \"/environment/salinity\": %f", this->salinity);
   } 
   else {
-    ROS_ERROR("Failed to import parameter, \"/environment/salinity\". Using default (\"%f\").", SALINITY);
+    ROS_WARN("Failed to import parameter, \"/environment/salinity\". Using default (\"%f\").", SALINITY);
     this->salinity = SALINITY;  // default
   }
 
@@ -164,7 +82,7 @@ void OculusSonar::fetch_ROS_parameters() {
     ROS_INFO("Imported parameter, \"frame\": %s", this->frame_str.c_str());
   } 
   else {
-    ROS_ERROR("Failed to import parameter, \"frame\". Using default (\"%s\").", SONAR_FRAME);
+    ROS_WARN("Failed to import parameter, \"frame\". Using default (\"%s\").", SONAR_FRAME);
     this->frame_str = SONAR_FRAME;  // default
   }
 
@@ -172,7 +90,7 @@ void OculusSonar::fetch_ROS_parameters() {
     ROS_INFO("Imported parameter, \"trigger_mode\": %i", this->trigger_mode);
   } 
   else {
-    ROS_ERROR("Failed to import parameter, \"trigger_mode\". Using default (\"%i\").", TRIGGER_MODE);
+    ROS_WARN("Failed to import parameter, \"trigger_mode\". Using default (\"%i\").", TRIGGER_MODE);
     this->trigger_mode = TRIGGER_MODE;  // default
   }
 
@@ -180,7 +98,7 @@ void OculusSonar::fetch_ROS_parameters() {
     ROS_INFO("Imported parameter, \"rate_hz\": %f", this->rate_hz);
   } 
   else {
-    ROS_ERROR("Failed to import parameter, \"rate_hz\".  Using default (\"%f\").", RATE_HZ);
+    ROS_WARN("Failed to import parameter, \"rate_hz\".  Using default (\"%f\").", RATE_HZ);
     this->rate_hz = RATE_HZ;  // default
   }  
 
@@ -188,7 +106,7 @@ void OculusSonar::fetch_ROS_parameters() {
     ROS_INFO("Imported parameter, \"frequency_mode\": %i", this->settings.frequency_mode);
   } 
   else {
-    ROS_ERROR("Failed to import parameter, \"frequency_mode\".  Using default (\"%i\").", FREQUENCY_MODE);
+    ROS_WARN("Failed to import parameter, \"frequency_mode\".  Using default (\"%i\").", FREQUENCY_MODE);
     this->settings.frequency_mode = FREQUENCY_MODE;  // default
   }  
 
@@ -196,7 +114,7 @@ void OculusSonar::fetch_ROS_parameters() {
     ROS_INFO("Imported parameter, \"range\": %f", this->settings.range);
   } 
   else {
-    ROS_ERROR("Failed to import parameter, \"range\".  Using default (\"%f\").", RANGE);
+    ROS_WARN("Failed to import parameter, \"range\".  Using default (\"%f\").", RANGE);
     this->settings.range = RANGE;  // default
   }  
 
@@ -204,10 +122,11 @@ void OculusSonar::fetch_ROS_parameters() {
     ROS_INFO("Imported parameter, \"gain\": %f", this->settings.gain);
   } 
   else {
-    ROS_ERROR("Failed to import parameter, \"gain\".  Using default (\"%f\").", GAIN);
+    ROS_WARN("Failed to import parameter, \"gain\".  Using default (\"%f\").", GAIN);
     this->settings.gain = GAIN;  // default
   }  
 }
+
 
 /**
  * @brief Function to establish TCP connection with the sonar
@@ -215,7 +134,7 @@ void OculusSonar::fetch_ROS_parameters() {
 void OculusSonar::connect_to_oculus() {
   // Setup TCP connection with sonar
   std::cout << "Getting socket!\n";   // magically needed
-  this->sockTCP = OculusSonar::get_socket(this->ip_address);
+  this->configure_socket();
   std::cout << "Using socket: " << this->sockTCP << " for sonar at " << inet_ntoa(this->ip_address) << "\n";
   this->oculus_control.m_readData.m_pSocket = &this->sockTCP;   // Pass the socket to the control
 
@@ -223,12 +142,45 @@ void OculusSonar::connect_to_oculus() {
   ROS_INFO("Connected to sonar!");
 }
 
+
+/**
+ * @brief Returns TCP socket for communicating with sonar
+ * 
+ * @param ip_address IP address of target sonar
+ */
+void OculusSonar::configure_socket() { 
+  
+  this->lengthServerTCP = sizeof(this->serverTCP);
+  bzero((char *)&this->serverTCP, this->lengthServerTCP);
+  this->serverTCP.sin_family = AF_INET;
+  this->serverTCP.sin_addr.s_addr = this->ip_address.s_addr;
+  this->serverTCP.sin_port = htons(PORT_TCP);
+
+  // Create the TCP socket for main communication or exit
+  this->sockTCP = socket(AF_INET, SOCK_STREAM, 0);
+  std::cout << "socket:" << this->sockTCP << std::endl;
+  if (this->sockTCP < 0)
+    OculusSonar::error("Error opening TCP main socket");
+
+  // Connect to the sonar Server via TCP socket or exit with error
+  if (connect(this->sockTCP, (struct sockaddr *)&this->serverTCP, this->lengthServerTCP) < 0)
+    OculusSonar::error("Error connecting TCP socket");
+  if (setsockopt(this->sockTCP, SOL_SOCKET, SO_RCVBUF, &this->buf_size, sizeof(this->buf_size)) < 0)
+    OculusSonar::error("Error increasing RCVBUF for TCP socket");
+  if (setsockopt(this->sockTCP, SOL_SOCKET, SO_KEEPALIVE, &this->keepalive, sizeof(this->keepalive)) < 0)
+    OculusSonar::error("Error keeping alive option set for TCP socket");
+  listen(this->sockTCP, 5);
+}
+
+
 /**
  * @brief Function to disconnect from the sonar
  */
 void OculusSonar::disconnect_from_oculus() {
   this->oculus_control.Disconnect();
-  close(this->sockTCP);  // close sockets
+  // close sockets
+  close(this->sockTCP);  
+  //close(this->sockUDP);
 } 
 
 /**
@@ -271,48 +223,38 @@ void OculusSonar::fire_oculus() {
 }
 
 /**
- * @brief ROS service to trigger sonar ping acquisition
- */ 
-bool OculusSonar::trigger_sonar(sonar_oculus::trigger::Request &req, sonar_oculus::trigger::Response &res) {
-  this->fire_oculus();      // fire sonar
-  ros::Rate poll_rate(POLL_RATE);
-  while (ros::ok()) {
-    if (this->check_for_ping() == true)
-      break;
-    poll_rate.sleep();
-    ros::spinOnce();  // tpo: is this needed?
-  }
-  return true;
-}
-
-
-/**
- * @brief Function to read the most recent data from the sonar
+ * @brief Method to poll sonar for ping message and publish if one is received
  */
-int OculusSonar::read_from_oculus() {
-  // run the read thread sonar
+bool OculusSonar::process_ping() {
+  //std::cout << "reading from sonar..." << std::endl;
   this->oculus_control.m_readData.run();
-
   // get bins and beams #.
-  unsigned int nbins = this->oculus_control.m_readData.m_osBuffer[0].m_rfm.nRanges;
-  unsigned int nbeams = this->oculus_control.m_readData.m_osBuffer[0].m_rfm.nBeams;
+  this->nbins = this->oculus_control.m_readData.m_osBuffer[0].m_rfm.nRanges;
+  this->nbeams = this->oculus_control.m_readData.m_osBuffer[0].m_rfm.nBeams;
   unsigned int id = this->oculus_control.m_readData.m_osBuffer[0].m_rfm.pingId;
-
+  //std::cout << "latest_id:" << this->latest_id << " id: " << id << " nbins:" << this->nbins << " nbeams:" << this->nbeams << std::endl;  // debug
   // create pointcloud message from sonar data
-  if (nbeams > 0 && nbins > 0 && id > this->latest_id) {
+  if (this->nbeams > 0 && this->nbins > 0 && id > this->latest_id) {
+    //std::cout << "id " << id << " is greater than this->latest_id " << this->latest_id << std::endl; 
     this->latest_id = id;
-    this->nbins = nbins;
-    this->nbeams = nbeams;
-    //ROS_INFO("Latest ID: %i", latest_id);
-    
+
+    //ROS_INFO("Latest ID: %i", this->latest_id); // debug
     if (this->oculus_control.m_readData.m_osBuffer[0].m_rawSize) {
-      return 1;
-    }
-    else {
-      return 0;
-    }
-  }
+
+      //std::cout << "successfully read valid data from sonar." << std::endl;
+      sensor_msgs::Image sonar_image = this->get_image();        // image msg
+      //std::cout << "generated new sonar image..." << std::endl;
+      sonar_oculus::OculusFire fire_msg = this->get_fire_msg();  // fire msg
+      //std::cout << "generated new fire message..." << std::endl;
+      sonar_oculus::OculusPing ping_msg = this->get_ping_msg(sonar_image, fire_msg);  // sonar ping
+      //std::cout << "generated new ping message , publishing..." << std::endl;
+      this->ping_pub.publish(ping_msg);
+      return true;
+      }
+  } 
+  return false;
 }
+
 
 /**
  * @brief Method to get a ROS image 
@@ -375,23 +317,6 @@ sonar_oculus::OculusPing OculusSonar::get_ping_msg(sensor_msgs::Image sonar_imag
   return ping_msg;
 }
 
-/**
- * @brief Method to poll sonar for ping message and publish if one is received
- */
-bool OculusSonar::check_for_ping() {
-  if (this->read_from_oculus() > 0) {
-      sensor_msgs::Image sonar_image = this->get_image();        // image msg
-      sonar_oculus::OculusFire fire_msg = this->get_fire_msg();  // fire msg
-      sonar_oculus::OculusPing ping_msg = this->get_ping_msg(sonar_image, fire_msg);  // sonar ping
-
-      this->ping_pub.publish(ping_msg);
-      return true;
-  } 
-  else {
-    return false;
-  }
-
-}
 
 // Member Get Methods
 
@@ -457,3 +382,124 @@ double OculusSonar::get_range() {
 double OculusSonar::get_gain() {
   return this->settings.gain;
 }
+
+
+/**
+ * @brief ROS service to trigger sonar ping acquisition
+ */ 
+bool OculusSonar::trigger_sonar(sonar_oculus::trigger::Request &req, sonar_oculus::trigger::Response &res) {
+
+  if (this->process_ping() == true) {
+    //std::cout << "ping detected..." << std::endl;
+    this->fire_oculus();  
+  }
+
+  return true;
+}
+
+
+  // TO DO:  IMPLEMENTATION OF THIS SERVICE
+  /* this->fire_oculus();      // fire sonar
+  ros::Rate poll_rate(POLL_RATE);
+  while (ros::ok()) {
+    if (this->check_for_ping() == true)
+      break;
+    poll_rate.sleep();
+    ros::spinOnce();  // tpo: is this needed?
+  } */
+  //std::cout << "TRIGGER CALLBACK" << std::endl;
+
+
+
+/**
+ * @brief Auto-detects IP address of oculus sonar
+ * 
+ * @param ip_address IP address of target sonar
+ */
+/* void OculusSonar::get_oculus_ip_address() {
+  std::cout << "BEGINNING CONNECTION" << std::endl;
+  // Clear and initialize values of server and client network info
+  this->lengthServerUDP = sizeof(this->serverUDP);
+  bzero((char *)&this->serverUDP, this->lengthServerUDP);
+  this->serverUDP.sin_family = AF_INET;
+  this->serverUDP.sin_addr.s_addr = htonl(INADDR_ANY);
+  this->serverUDP.sin_port = htons(PORT_UDP);
+  this->lengthClientUDP = sizeof(this->clientUDP);
+
+  // Create the UDP listening socket or exit
+  this->sockUDP = socket(AF_INET, SOCK_DGRAM, 0);
+  if (this->sockUDP < 0)
+    OculusSonar::error("Error opening UDP listening socket");
+
+  // Bind the UDP socket to address and port, or exit with error
+  if (bind(this->sockUDP, (struct sockaddr *)&this->serverUDP, this->lengthServerUDP) < 0)
+    OculusSonar::error("Error binding UDP listening socket");
+  listen(this->sockUDP, 5);
+
+  int64_t bytesAvailable = 0;
+  OculusStatusMsg osm;
+
+  while (true) {
+    ioctl(sockUDP, FIONREAD, &bytesAvailable);
+    if (bytesAvailable > 0) {
+      unsigned bytesRead = read(this->sockUDP, (char *)&osm, bytesAvailable);
+
+      ip_address.s_addr = osm.ipAddr;
+      printf("The IP address is %s\n", inet_ntoa(ip_address));
+      this->ip_address = ip_address;
+      this->get_socket();
+      break;
+    }
+      
+    ROS_INFO(".");
+    ros::Duration(1.0).sleep();
+  }
+} */
+
+/**
+ * @brief Method to poll sonar for ping message and publish if one is received
+ */
+/* bool OculusSonar::check_for_ping() {
+  if (this->read_from_oculus() > 0) {
+      sensor_msgs::Image sonar_image = this->get_image();        // image msg
+      sonar_oculus::OculusFire fire_msg = this->get_fire_msg();  // fire msg
+      sonar_oculus::OculusPing ping_msg = this->get_ping_msg(sonar_image, fire_msg);  // sonar ping
+
+      this->ping_pub.publish(ping_msg);
+      return true;
+  } 
+  else {
+    return false;
+  }
+
+}
+*/
+
+
+/**
+ * @brief Function to read the most recent data from the sonar
+ */
+/* int OculusSonar::read_from_oculus() {
+  // run the read thread sonar
+  this->oculus_control.m_readData.run();
+
+  // get bins and beams #.
+  unsigned int nbins = this->oculus_control.m_readData.m_osBuffer[0].m_rfm.nRanges;
+  unsigned int nbeams = this->oculus_control.m_readData.m_osBuffer[0].m_rfm.nBeams;
+  unsigned int id = this->oculus_control.m_readData.m_osBuffer[0].m_rfm.pingId;
+
+  // create pointcloud message from sonar data
+  if (nbeams > 0 && nbins > 0 && id > this->latest_id) {
+    this->latest_id = id;
+    this->nbins = nbins;
+    this->nbeams = nbeams;
+    //ROS_INFO("Latest ID: %i", latest_id);
+    
+    if (this->oculus_control.m_readData.m_osBuffer[0].m_rawSize) {
+      return 1;
+    }
+    else {
+      return 0;
+    }
+  }
+} */
