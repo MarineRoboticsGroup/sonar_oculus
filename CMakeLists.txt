@@ -10,14 +10,13 @@ find_package(catkin REQUIRED COMPONENTS
   dynamic_reconfigure
   std_msgs
   sensor_msgs
-  pcl_conversions
-  pcl_ros
+  # pcl_conversions
+  # pcl_ros
   message_generation
 )
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
-
 
 ################################################
 ## Declare ROS messages, services and actions ##
@@ -103,8 +102,8 @@ generate_dynamic_reconfigure_options(
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
    INCLUDE_DIRS include
-   CATKIN_DEPENDS roscpp dynamic_reconfigure std_msgs sensor_msgs pcl_conversions pcl_ros message_runtime
-#  DEPENDS system_lib
+   LIBRARIES sonar_oculus
+   CATKIN_DEPENDS roscpp dynamic_reconfigure std_msgs sensor_msgs
 )
 
 ###########
@@ -119,9 +118,10 @@ include_directories(
 )
 
 ## Declare a C++ library
-# add_library(${PROJECT_NAME}
-#   src/${PROJECT_NAME}/sonar_oculus.cpp
-# )
+add_library(${PROJECT_NAME}
+  src/${PROJECT_NAME}/OculusClient.cpp 
+  src/${PROJECT_NAME}/OculusSonar.cpp
+)
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
@@ -136,9 +136,6 @@ include_directories(
 add_executable(${PROJECT_NAME}_node src/sonar.cpp)
 
 
-add_library(OculusClient include/OculusClient.cpp)
-add_library(OculusSonar include/OculusSonar.cpp)
-
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
 ## target back to the shorter version for ease of user use
@@ -147,23 +144,21 @@ add_library(OculusSonar include/OculusSonar.cpp)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
-add_dependencies(${PROJECT_NAME}_node ${PROJECT_NAME}_gencfg)
+add_dependencies(${PROJECT_NAME}_node ${PROJECT_NAME} ${PROJECT_NAME}_gencfg trigger_gencpp)
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(${PROJECT_NAME}_node
-#   ${catkin_LIBRARIES}
+target_link_libraries(${PROJECT_NAME}_node ${PROJECT_NAME}
+   ${catkin_LIBRARIES}
 #   ${roslib_LIBRARIES}
 #   ${PCL_LIBRARIES}
-   OculusClient
-   OculusSonar
 )
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(OculusSonar
-   ${catkin_LIBRARIES}
-   ${roslib_LIBRARIES}
-   ${PCL_LIBRARIES}
-)
+# target_link_libraries(OculusSonar
+#    ${catkin_LIBRARIES}
+#    ${roslib_LIBRARIES}
+#    ${PCL_LIBRARIES}
+# )
 
 
 #############

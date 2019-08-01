@@ -1,4 +1,4 @@
-#include "OculusSonar.h"
+#include <sonar_oculus/OculusSonar.h>
 
 // Implementation for OculusSonar Class
 

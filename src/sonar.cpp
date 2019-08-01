@@ -16,7 +16,7 @@
 #include <sonar_oculus/OculusFire.h>
 #include <sonar_oculus/OculusPing.h>
 
-#include "OculusSonar.h"
+#include <sonar_oculus/OculusSonar.h>
 
 
 int main(int argc, char **argv) {
