@@ -29,8 +29,8 @@
 #include <arpa/inet.h>
 #include <sys/ioctl.h>
 
-#include "Oculus.h"
-#include "OculusClient.h"
+#include "sonar_oculus/Oculus.h"
+#include "sonar_oculus/OculusClient.h"
 
 
 // ============================================================================
