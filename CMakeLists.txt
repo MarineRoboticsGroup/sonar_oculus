@@ -9,6 +9,7 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   dynamic_reconfigure
   std_msgs
+  std_srvs
   sensor_msgs
   pcl_conversions
   pcl_ros
@@ -52,10 +53,10 @@ add_message_files(
 )
 
 ## Generate services in the 'srv' folder
-add_service_files(
-  FILES
-  trigger.srv
-)
+#add_service_files(
+#  FILES
+#  trigger.srv
+#)
 
 ## Generate actions in the 'action' folder
 # add_action_files(
@@ -68,6 +69,7 @@ add_service_files(
 generate_messages(
    DEPENDENCIES
    std_msgs
+   std_srvs
    sensor_msgs
 )
 
@@ -103,7 +105,7 @@ generate_dynamic_reconfigure_options(
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
    INCLUDE_DIRS include
-   CATKIN_DEPENDS roscpp dynamic_reconfigure std_msgs sensor_msgs pcl_conversions pcl_ros message_runtime
+   CATKIN_DEPENDS roscpp dynamic_reconfigure std_msgs std_srvs sensor_msgs pcl_conversions pcl_ros message_runtime
 #  DEPENDS system_lib
 )
 

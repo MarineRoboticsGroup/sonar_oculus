@@ -36,7 +36,7 @@ int main(int argc, char **argv) {
     ros::Rate sample_rate(sonar.get_rate_hz()); 
     sonar.fire_oculus(); // Send Ping and initiate data collection
     while (ros::ok()) {   // run continously
-      if (sonar.process_ping() == true) {
+      if (sonar.process_ping()) {
         //std::cout << "ping detected..." << std::endl;
         sonar.fire_oculus();  
       }
@@ -51,7 +51,17 @@ int main(int argc, char **argv) {
   else {  // external trigger mode
     ROS_INFO("Ready to fire sonar...");
     sonar.fire_oculus(); // Send Ping and initiate data collection
-    ros::spin();
+    while (ros::ok()) {
+      if (sonar.get_trigger_flag()) {
+        if (sonar.process_ping()) {
+          //std::cout << "ping detected..." << std::endl;
+          sonar.fire_oculus();  
+        }
+        sonar.reset_trigger_flag();
+      //ros::spin();
+      }
+      ros::spinOnce();
+    }
   }
 
   ROS_INFO("Closing TCP connection to the sonar...");

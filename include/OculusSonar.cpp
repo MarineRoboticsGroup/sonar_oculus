@@ -14,8 +14,12 @@ OculusSonar::OculusSonar(ros::NodeHandle nh) {
   this->ping_pub = this->nh.advertise<sonar_oculus::OculusPing>("ping", 1);
 
   // Setup trigger service
-  this->trigger_srv = this->nh.advertiseService("trigger", &OculusSonar::trigger_sonar, this);
-
+  this->trigger_srv = this->nh.advertiseService("trigger", &OculusSonar::trigger_callback, this);
+  this->trigger_flag = false;
+  //this->trigger_srv = this->nh.advertiseService<std_srvs::TriggerRequest, std_srvs::TriggerResponse>("trigger", &OculusSonar::trigger_callback, this);  // CRASHES ON CALLBACK
+  //this->f_trigger = boost::bind(&OculusSonar::trigger_callback, this);
+  //this->trigger_srv = this->nh.advertiseService("trigger", this->f_trigger);
+  
   // Setup dynamic reconfigure server
   this->f_reconfig = boost::bind(&OculusSonar::reconfigure_callback, this, _1, _2);
   this->serverParam.setCallback(this->f_reconfig);   
@@ -317,6 +321,12 @@ sonar_oculus::OculusPing OculusSonar::get_ping_msg(sensor_msgs::Image sonar_imag
   return ping_msg;
 }
 
+/**
+ * @brief Method to reset the trigger flag
+ */
+void OculusSonar::reset_trigger_flag() {
+  this->trigger_flag = false;
+}
 
 // Member Get Methods
 
@@ -385,121 +395,18 @@ double OculusSonar::get_gain() {
 
 
 /**
+ * @brief Function to return gain setting (%)
+ */
+bool OculusSonar::get_trigger_flag() {
+  return this->trigger_flag;
+}
+
+
+/**
  * @brief ROS service to trigger sonar ping acquisition
  */ 
-bool OculusSonar::trigger_sonar(sonar_oculus::trigger::Request &req, sonar_oculus::trigger::Response &res) {
-
-  if (this->process_ping() == true) {
-    //std::cout << "ping detected..." << std::endl;
-    this->fire_oculus();  
-  }
-
+bool OculusSonar::trigger_callback(std_srvs::TriggerRequest &req, std_srvs::TriggerResponse &res) {
+  //std::cout << "Entering trigger service callback" << std::endl;
+  this->trigger_flag = true;
   return true;
 }
-
-
-  // TO DO:  IMPLEMENTATION OF THIS SERVICE
-  /* this->fire_oculus();      // fire sonar
-  ros::Rate poll_rate(POLL_RATE);
-  while (ros::ok()) {
-    if (this->check_for_ping() == true)
-      break;
-    poll_rate.sleep();
-    ros::spinOnce();  // tpo: is this needed?
-  } */
-  //std::cout << "TRIGGER CALLBACK" << std::endl;
-
-
-
-/**
- * @brief Auto-detects IP address of oculus sonar
- * 
- * @param ip_address IP address of target sonar
- */
-/* void OculusSonar::get_oculus_ip_address() {
-  std::cout << "BEGINNING CONNECTION" << std::endl;
-  // Clear and initialize values of server and client network info
-  this->lengthServerUDP = sizeof(this->serverUDP);
-  bzero((char *)&this->serverUDP, this->lengthServerUDP);
-  this->serverUDP.sin_family = AF_INET;
-  this->serverUDP.sin_addr.s_addr = htonl(INADDR_ANY);
-  this->serverUDP.sin_port = htons(PORT_UDP);
-  this->lengthClientUDP = sizeof(this->clientUDP);
-
-  // Create the UDP listening socket or exit
-  this->sockUDP = socket(AF_INET, SOCK_DGRAM, 0);
-  if (this->sockUDP < 0)
-    OculusSonar::error("Error opening UDP listening socket");
-
-  // Bind the UDP socket to address and port, or exit with error
-  if (bind(this->sockUDP, (struct sockaddr *)&this->serverUDP, this->lengthServerUDP) < 0)
-    OculusSonar::error("Error binding UDP listening socket");
-  listen(this->sockUDP, 5);
-
-  int64_t bytesAvailable = 0;
-  OculusStatusMsg osm;
-
-  while (true) {
-    ioctl(sockUDP, FIONREAD, &bytesAvailable);
-    if (bytesAvailable > 0) {
-      unsigned bytesRead = read(this->sockUDP, (char *)&osm, bytesAvailable);
-
-      ip_address.s_addr = osm.ipAddr;
-      printf("The IP address is %s\n", inet_ntoa(ip_address));
-      this->ip_address = ip_address;
-      this->get_socket();
-      break;
-    }
-      
-    ROS_INFO(".");
-    ros::Duration(1.0).sleep();
-  }
-} */
-
-/**
- * @brief Method to poll sonar for ping message and publish if one is received
- */
-/* bool OculusSonar::check_for_ping() {
-  if (this->read_from_oculus() > 0) {
-      sensor_msgs::Image sonar_image = this->get_image();        // image msg
-      sonar_oculus::OculusFire fire_msg = this->get_fire_msg();  // fire msg
-      sonar_oculus::OculusPing ping_msg = this->get_ping_msg(sonar_image, fire_msg);  // sonar ping
-
-      this->ping_pub.publish(ping_msg);
-      return true;
-  } 
-  else {
-    return false;
-  }
-
-}
-*/
-
-
-/**
- * @brief Function to read the most recent data from the sonar
- */
-/* int OculusSonar::read_from_oculus() {
-  // run the read thread sonar
-  this->oculus_control.m_readData.run();
-
-  // get bins and beams #.
-  unsigned int nbins = this->oculus_control.m_readData.m_osBuffer[0].m_rfm.nRanges;
-  unsigned int nbeams = this->oculus_control.m_readData.m_osBuffer[0].m_rfm.nBeams;
-  unsigned int id = this->oculus_control.m_readData.m_osBuffer[0].m_rfm.pingId;
-
-  // create pointcloud message from sonar data
-  if (nbeams > 0 && nbins > 0 && id > this->latest_id) {
-    this->latest_id = id;
-    this->nbins = nbins;
-    this->nbeams = nbeams;
-    //ROS_INFO("Latest ID: %i", latest_id);
-    
-    if (this->oculus_control.m_readData.m_osBuffer[0].m_rawSize) {
-      return 1;
-    }
-    else {
-      return 0;
-    }
-  }
-} */
