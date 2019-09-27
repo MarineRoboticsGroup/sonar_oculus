@@ -2,7 +2,7 @@
 import numpy as np
 import cv2
 import os.path
-from scipy.interpolate import interp1d
+#from scipy.interpolate import interp1d
 
 # ROS
 import rospy
@@ -23,6 +23,9 @@ class Ranger:
   def __init__(self):
     self.bridge = cv_bridge.CvBridge()
     
+    # register parameter update callback
+    self.cfg_srv = Server(RangerConfig, self.config_callback)
+
     # import threshold setting from ROS parameter server
     try:
       self.threshold = rospy.get_param(rospy.get_name()+'/threshold')
@@ -39,12 +42,26 @@ class Ranger:
       self.config_path = None
       rospy.logwarn('Unable to import ROS parameter \'config_path\'.  Using default: '+str(self.config_path))
 
-    # register parameter update callback
-    self.cfg_srv = Server(RangerConfig, self.config_callback)
+
+    # import multibeam sonar gate limit (high) from ROS parameter server
+    try:
+      self.gate_high = rospy.get_param(rospy.get_name()+'/gate_high')
+      rospy.loginfo('Imported ROS parameter \'gate_high\': '+str(self.gate_high))
+    except:
+      self.gate_high = 20
+      rospy.logwarn('No upper range gate set for oculus sonar. Using default: ', self.gate_high)
+
+
+    # import multibeam sonar gate limit (low) from ROS parameter server
+    try:
+      self.gate_low = rospy.get_param(rospy.get_name()+'/gate_low')
+      rospy.loginfo('Imported ROS parameter \'gate_low\': '+str(self.gate_low))
+    except:
+      self.gate_low = 0
+      rospy.logwarn('No lower range gate set for oculus sonar. Using default: ', self.gate_low)
 
     # initialize sonar pre-processor
     self.sonar = Sonar()
-
 
     rospack = rospkg.RosPack()
     self.config_path = os.path.join(rospack.get_path('sonar_oculus'), self.config_path)
@@ -97,7 +114,8 @@ class Ranger:
             pt.x = br*np.cos(ba)
             pt.y = br*np.sin(ba) 
             pt.z = 0.0
-            cloud_msg.points.append(pt)
+            if (br <= self.gate_high) and (br >= self.gate_low):
+              cloud_msg.points.append(pt)
                 
     self.cloud_publisher.publish(cloud_msg)
 
@@ -106,7 +124,12 @@ class Ranger:
     Configuration callback.
     """
     self.threshold = config['Threshold']
+    self.gate_high = config['Gate_high']
+    self.gate_low = config['Gate_low']
+
     print('Updated Oculus Ranger threshold:', self.threshold)
+    print('Updated Oculus Ranger gate_high:', self.gate_high)
+    print('Updated Oculus Ranger gate_low:', self.gate_low)
     return config
  
 
