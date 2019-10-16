@@ -1,10 +1,7 @@
 /**
  * @file sonar.cpp
- * @author Vincent Sieben
- * @author Pedro Vaz Teixeira (pvt@mit.edu)
- * @author Timothy Osedach (tosedach@slb.com)
  * @brief ROS publisher for Blueprint Oculus multibeam sonars
- * @version 0.1
+ * @version 1.0
  * 
  * @copyright Copyright (c) 2019
  * 
