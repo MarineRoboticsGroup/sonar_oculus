@@ -34,7 +34,7 @@ int main(int argc, char **argv) {
     sonar.fire_oculus(); // Send Ping and initiate data collection
     while (ros::ok()) {   // run continously
       if (sonar.process_ping()) {
-        //std::cout << "ping detected..." << std::endl;
+        // std::cout << "ping detected..." << std::endl;
         sonar.fire_oculus();  
       }
 

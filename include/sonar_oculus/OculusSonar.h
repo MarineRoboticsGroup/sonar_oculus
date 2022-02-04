@@ -43,6 +43,7 @@
 //#define PORT_UDP 52102
 #define PORT_TCP 52100
 
+
 // Default Sonar Configuration
 #define SONAR_FRAME "sonar"
 #define TRIGGER_MODE 0

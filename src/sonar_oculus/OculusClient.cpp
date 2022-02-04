@@ -265,8 +265,9 @@ void OsReadThread::run()
   unsigned nSent = 0;
 
   // Cannot progress without a client
-  if (!m_pClient)
+  if (!m_pClient) {
     return;
+  }
 
 /* Do not want run to open sockets
 
@@ -312,9 +313,8 @@ void OsReadThread::run()
     m_sending.unlock();
 
     // Check for any data in the rx buffer
-    int64_t bytesAvailable;
+    int64_t bytesAvailable = 0; 
 	  ioctl(*m_pSocket, FIONREAD, &bytesAvailable);
-
     if (bytesAvailable > 0)
     { 
       // Make sure there is enough room in the buffer - expand if required
@@ -333,7 +333,6 @@ void OsReadThread::run()
       ProcessRxBuffer();
 
     }
-    
     //m_pSocket->waitForReadyRead(5);
   }
 
@@ -348,6 +347,7 @@ void OsReadThread::run()
 
   //std::cerr << "Read Thread exited";
 }
+
 
 
 // ============================================================================
