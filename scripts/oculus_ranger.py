@@ -87,7 +87,7 @@ class Ranger:
     """
     Sonar ping callback.
     """
-    img = self.bridge.imgmsg_to_cv2(msg.ping, desired_encoding="passthrough")
+    img = self.bridge.compressed_imgmsg_to_cv2(msg.ping, desired_encoding="passthrough")
 
     # TODO: check if updates to sonar config are needed
     # TODO: save latest config as json

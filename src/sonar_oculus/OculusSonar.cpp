@@ -296,24 +296,24 @@ sonar_oculus::OculusFire OculusSonar::get_fire_msg() {
  */
 sonar_oculus::OculusPing OculusSonar::get_ping_msg(sensor_msgs::Image sonar_image, sonar_oculus::OculusFire fire_msg) {
   sonar_oculus::OculusPing ping_msg;
-  ping_msg.header.frame_id = this->frame_str;
-  ping_msg.header.stamp = fire_msg.header.stamp;
-  ping_msg.ping = sonar_image;
-  ping_msg.fire_msg = fire_msg;
-  ping_msg.ping_id = this->latest_id;
-  ping_msg.status = this->oculus_control.m_readData.m_osBuffer[0].m_rfm.status;
-  ping_msg.frequency = this->oculus_control.m_readData.m_osBuffer[0].m_rfm.frequency;
-  ping_msg.temperature = this->oculus_control.m_readData.m_osBuffer[0].m_rfm.temperature;
-  ping_msg.pressure = this->oculus_control.m_readData.m_osBuffer[0].m_rfm.pressure;
-  ping_msg.speed_of_sound = this->oculus_control.m_readData.m_osBuffer[0].m_rfm.speedOfSoundUsed;
+  // ping_msg.header.frame_id = this->frame_str;
+  // ping_msg.header.stamp = fire_msg.header.stamp;
+  // ping_msg.ping = sonar_image;
+  // ping_msg.fire_msg = fire_msg;
+  // ping_msg.ping_id = this->latest_id;
+  // ping_msg.status = this->oculus_control.m_readData.m_osBuffer[0].m_rfm.status;
+  // ping_msg.frequency = this->oculus_control.m_readData.m_osBuffer[0].m_rfm.frequency;
+  // ping_msg.temperature = this->oculus_control.m_readData.m_osBuffer[0].m_rfm.temperature;
+  // ping_msg.pressure = this->oculus_control.m_readData.m_osBuffer[0].m_rfm.pressure;
+  // ping_msg.speed_of_sound = this->oculus_control.m_readData.m_osBuffer[0].m_rfm.speedOfSoundUsed;
 
-  ping_msg.start_time = this->oculus_control.m_readData.m_osBuffer[0].m_rfm.pingStartTime;
-  ping_msg.bearings.resize(this->nbeams);
-  for (unsigned int i = 0; i < this->nbeams; ++i)
-    ping_msg.bearings[i] = this->oculus_control.m_readData.m_osBuffer[0].m_pBrgs[i];
-  ping_msg.range_resolution = this->oculus_control.m_readData.m_osBuffer[0].m_rfm.rangeResolution;
-  ping_msg.num_ranges = this->nbins;
-  ping_msg.num_beams = this->nbeams;
+  // ping_msg.start_time = this->oculus_control.m_readData.m_osBuffer[0].m_rfm.pingStartTime;
+  // ping_msg.bearings.resize(this->nbeams);
+  // for (unsigned int i = 0; i < this->nbeams; ++i)
+  //   ping_msg.bearings[i] = this->oculus_control.m_readData.m_osBuffer[0].m_pBrgs[i];
+  // ping_msg.range_resolution = this->oculus_control.m_readData.m_osBuffer[0].m_rfm.rangeResolution;
+  // ping_msg.num_ranges = this->nbins;
+  // ping_msg.num_beams = this->nbeams;
   return ping_msg;
 }
 

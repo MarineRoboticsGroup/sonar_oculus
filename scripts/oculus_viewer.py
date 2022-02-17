@@ -50,7 +50,7 @@ def generate_map_xy(ping):
 
 def ping_callback(msg):
     if raw:
-        img = bridge.imgmsg_to_cv2(msg.ping, desired_encoding='passthrough')
+        img = bridge.compressed_imgmsg_to_cv2(msg.ping, desired_encoding='passthrough')
         img = cv2.normalize(img, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX)
         img = cv2.applyColorMap(img, cm)
         img_msg = bridge.cv2_to_imgmsg(img, encoding="bgr8")
@@ -59,7 +59,7 @@ def ping_callback(msg):
     else:
         generate_map_xy(msg)
 
-        img = bridge.imgmsg_to_cv2(msg.ping, desired_encoding='passthrough')
+        img = bridge.compressed_imgmsg_to_cv2(msg.ping, desired_encoding='passthrough')
         img = np.array(img, dtype=img.dtype, order='F')
 
         img.resize(rows, cols)
