@@ -15,7 +15,6 @@
 
 #include <sonar_oculus/OculusSonar.h>
 
-
 int main(int argc, char **argv) {
   // Initialize ROS node
   ROS_INFO("Initializing ROS node for Oculus multibeam sonar...");
