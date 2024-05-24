@@ -65,12 +65,12 @@ class Sonar(object):
 
     def print_config(self):
         """Print the sonar configuration."""
-        print 'Range:', self.min_range, '-', self.max_range
-        print 'FOV:', self.fov
-        print 'Beams:', self.num_beams
-        print 'Bins:', self.num_bins
-        print '1/SNR:', self.noise
-        print 'Rx gain:', self.rx_gain
+        print('Range:', self.min_range, '-', self.max_range)
+        print('FOV:', self.fov)
+        print('Beams:', self.num_beams)
+        print('Bins:', self.num_bins)
+        print('1/SNR:', self.noise)
+        print('Rx gain:', self.rx_gain)
 
     def load_config(self, cfg_file='sonar.json'):
         """Load the sonar configuration from file."""
